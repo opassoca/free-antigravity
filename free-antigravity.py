@@ -1,0 +1,516 @@
+import os
+import sys
+import json
+import logging
+import asyncio
+import httpx
+from typing import Any, AsyncGenerator
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse
+
+# Adicionar pasta do free-claude-code ao path do sistema para importar seus modulos
+FCC_PATH = "/data/data/com.termux/files/home/free-claude-code"
+if FCC_PATH not in sys.path:
+    sys.path.append(FCC_PATH)
+
+# Carregar configuracoes do free-claude-code .env se disponivel
+FCC_ENV_PATH = os.path.join(FCC_PATH, ".env")
+if os.path.exists(FCC_ENV_PATH):
+    load_dotenv(FCC_ENV_PATH)
+
+# Configurar Logs
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger("FreeAntigravity")
+
+# Tentar importar os roteadores e runtime do free-claude-code para unificar os proxies
+fcc_router = None
+fcc_admin_router = None
+AppRuntime = None
+get_settings = None
+
+try:
+    from api.routes import router as fcc_router
+    from api.admin_routes import router as fcc_admin_router
+    from api.runtime import AppRuntime
+    from config.settings import get_settings
+    logger.info("Modulos do Free Claude Code importados com sucesso para unificacao!")
+except Exception as e:
+    logger.warning(f"Nao foi possivel importar modulos do Free Claude Code: {e}")
+
+@asynccontextmanager
+async def app_lifespan(app: FastAPI):
+    """Lifespan que inicializa o AppRuntime do free-claude-code se disponivel."""
+    runtime = None
+    if AppRuntime and get_settings:
+        try:
+            settings = get_settings()
+            runtime = AppRuntime.for_app(app, settings=settings)
+            await runtime.startup()
+            logger.info("AppRuntime do Free Claude Code iniciado com sucesso no lifespan!")
+        except Exception as e:
+            logger.error(f"Erro ao iniciar AppRuntime no lifespan: {e}")
+            
+    yield
+    
+    if runtime:
+        try:
+            await runtime.shutdown()
+            logger.info("AppRuntime do Free Claude Code finalizado com sucesso no lifespan.")
+        except Exception as e:
+            logger.error(f"Erro ao finalizar AppRuntime no lifespan: {e}")
+
+app = FastAPI(title="Free Antigravity API Server", lifespan=app_lifespan)
+
+# Incluir roteadores do free-claude-code se disponiveis na mesma raiz
+if fcc_router:
+    app.include_router(fcc_router)
+if fcc_admin_router:
+    app.include_router(fcc_admin_router)
+
+# Chaves API e URLs padrao obtidas do .env
+NVIDIA_NIM_API_KEY = os.environ.get("NVIDIA_NIM_API_KEY", "")
+NIM_MODEL = os.environ.get("NIM_MODEL", "deepseek-ai/deepseek-r1")
+NIM_BASE_URL = "https://integrate.api.nvidia.com/v1"
+
+if not NVIDIA_NIM_API_KEY:
+    logger.warning("NVIDIA_NIM_API_KEY nao configurada no .env!")
+
+@app.post("/v1internal:onboardUser")
+async def onboard_user(request: Request):
+    logger.info("onboardUser chamado")
+    return JSONResponse(content={})
+
+async def log_request_details(request: Request, endpoint_name: str):
+    """Log detalhado de headers e body para debug."""
+    headers_dict = dict(request.headers)
+    content_type = headers_dict.get("content-type", "NONE")
+    accept = headers_dict.get("accept", "NONE")
+    logger.info(f"[{endpoint_name}] Content-Type: {content_type} | Accept: {accept}")
+    logger.info(f"[{endpoint_name}] All headers: {headers_dict}")
+    raw_body = await request.body()
+    logger.info(f"[{endpoint_name}] Raw body ({len(raw_body)} bytes): {raw_body[:500]}")
+    try:
+        body_json = json.loads(raw_body) if raw_body else {}
+        logger.info(f"[{endpoint_name}] Parsed JSON body: {json.dumps(body_json, indent=2)[:1000]}")
+    except Exception:
+        logger.info(f"[{endpoint_name}] Body is NOT JSON")
+    return raw_body
+
+@app.post("/v1internal:loadCodeAssist")
+async def load_code_assist(request: Request):
+    await log_request_details(request, "loadCodeAssist")
+    return JSONResponse(content={
+        "userSettings": {
+            "telemetryEnabled": True
+        },
+        "userTierId": "free-tier",
+        "modelConfigId": "default-config",
+        "disableTelemetry": False,
+        "disableFeedback": False,
+        "disableCitations": False,
+        "model": {
+            "name": "models/gemini-3.5-flash",
+            "displayName": "Gemini 3.5 Flash (High)"
+        },
+        "experiments": []
+    })
+
+@app.post("/v1internal:fetchAdminControls")
+async def fetch_admin_controls(request: Request):
+    await log_request_details(request, "fetchAdminControls")
+    return JSONResponse(content={})
+
+@app.post("/v1internal:fetchUserInfo")
+async def fetch_user_info(request: Request):
+    await log_request_details(request, "fetchUserInfo")
+    return JSONResponse(content={
+        "email": "euodeioodiabo@gmail.com",
+        "displayName": "Antigravity User"
+    })
+
+@app.post("/v1internal:setUserSettings")
+async def set_user_settings(request: Request):
+    await log_request_details(request, "setUserSettings")
+    return JSONResponse(content={})
+
+@app.post("/v1internal:retrieveUserQuotaSummary")
+async def retrieve_quota(request: Request):
+    await log_request_details(request, "retrieveUserQuotaSummary")
+    return JSONResponse(content={
+        "quotaLimit": 100000,
+        "quotaRemaining": 100000,
+        "resetTime": "2026-07-06T00:00:00Z"
+    })
+
+@app.post("/v1internal:listExperiments")
+async def list_experiments(request: Request):
+    await log_request_details(request, "listExperiments")
+    return JSONResponse(content={
+        "experimentIds": [],
+        "experiments": [],
+        "flags": []
+    })
+
+@app.post("/v1internal:fetchAvailableModels")
+async def fetch_models(request: Request):
+    await log_request_details(request, "fetchAvailableModels")
+    json_path = "/data/data/com.termux/files/home/free-antigravity/real_models_response.json"
+    if os.path.exists(json_path):
+        with open(json_path, "r") as f:
+            data = json.load(f)
+        return JSONResponse(content=data)
+    else:
+        logger.error(f"Arquivo real_models_response.json nao encontrado em {json_path}!")
+        return JSONResponse(content={"models": {}})
+
+@app.get("/v1internal/")
+async def root_probe(request: Request):
+    return JSONResponse(content={"status": "ok"})
+
+def resolve_active_provider(request: Request, default_model: str) -> tuple[str, str, str]:
+    """Resolve dinamicamente a base_url, api_key e model com base nas envs e headers."""
+    # Ler cabecalho de autenticacao para verificar se o usuario embutiu o provedor/modelo
+    # Formato suportado: x-api-key: SUA_CHAVE:PROVEDOR/MODELO
+    auth_header = (
+        request.headers.get("x-api-key")
+        or request.headers.get("authorization")
+        or request.headers.get("anthropic-auth-token")
+        or ""
+    )
+    
+    token = auth_header.strip()
+    if auth_header.lower().startswith("bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+        
+    model_override = None
+    if token and ":" in token:
+        parts = token.split(":", 1)
+        # O token real fica na primeira parte
+        token = parts[0].strip()
+        model_override = parts[1].strip()
+        logger.info(f"Override de modelo detectado no cabecalho: {model_override}")
+
+    # Determinar qual o modelo a ser usado (do payload da request, override de cabecalho ou default_model)
+    target_model = model_override or default_model
+    
+    # Extrair provedor e nome do modelo a partir do formato provider/model_name
+    provider = "nvidia_nim"
+    model_name = target_model
+    
+    if "/" in target_model:
+        parts = target_model.split("/", 1)
+        provider = parts[0]
+        model_name = parts[1]
+        
+    # Resolver configuracoes baseado no provedor determinado
+    base_url = NIM_BASE_URL
+    api_key = NVIDIA_NIM_API_KEY
+    
+    if provider == "nvidia_nim":
+        base_url = "https://integrate.api.nvidia.com/v1"
+        api_key = os.environ.get("NVIDIA_NIM_API_KEY", "") or token
+        # Se for nemotron (padrao do fcc), substituir por deepseek r1 para melhor qualidade de resposta
+        if "nemotron" in model_name or not model_name:
+            model_name = "deepseek-ai/deepseek-r1"
+            
+    elif provider == "open_router" or provider == "openrouter":
+        base_url = "https://openrouter.ai/api/v1"
+        api_key = os.environ.get("OPENROUTER_API_KEY", "") or token
+        if not model_name or model_name == target_model:
+            model_name = "google/gemini-2.5-pro"
+            
+    elif provider == "deepseek":
+        base_url = "https://api.deepseek.com/v1"
+        api_key = os.environ.get("DEEPSEEK_API_KEY", "") or token
+        if not model_name or model_name == target_model:
+            model_name = "deepseek-reasoner"
+            
+    elif provider == "mistral":
+        base_url = "https://api.mistral.ai/v1"
+        api_key = os.environ.get("MISTRAL_API_KEY", "") or token
+        if not model_name or model_name == target_model:
+            model_name = "codestral-latest"
+            
+    elif provider == "groq":
+        base_url = "https://api.groq.com/openai/v1"
+        api_key = os.environ.get("GROQ_API_KEY", "") or token
+        if not model_name or model_name == target_model:
+            model_name = "llama-3.3-70b-versatile"
+            
+    elif provider == "gemini":
+        base_url = "https://generativelanguage.googleapis.com/v1beta" # Exige payload diferente, tratar se necessario
+        api_key = os.environ.get("GEMINI_API_KEY", "") or token
+        
+    elif provider == "ollama":
+        base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/") + "/v1"
+        api_key = "ollama"
+        if not model_name or model_name == target_model:
+            model_name = "deepseek-r1"
+            
+    # Se nao casou com nenhum, tenta usar as chaves configuradas na env diretamente
+    else:
+        # Se comecar com a chave NIM
+        if token.startswith("nvapi-") or NVIDIA_NIM_API_KEY:
+            base_url = "https://integrate.api.nvidia.com/v1"
+            api_key = NVIDIA_NIM_API_KEY or token
+            model_name = target_model
+        else:
+            # Fallback generico
+            base_url = "https://integrate.api.nvidia.com/v1"
+            api_key = token or NVIDIA_NIM_API_KEY
+            model_name = target_model
+
+    logger.info(f"Provedor resolvido: {provider} | Base URL: {base_url} | Model: {model_name}")
+    return base_url, api_key, model_name
+
+def convert_gemini_to_openai(gemini_request: dict, target_model: str) -> dict:
+    """Converte a chamada de API do Gemini para o formato da API OpenAI."""
+    openai_messages = []
+    
+    # 1. Traduzir o historico de mensagens (contents)
+    contents = gemini_request.get("contents", [])
+    for content in contents:
+        role = content.get("role")
+        openai_role = "user" if role == "user" else "assistant"
+        
+        parts = content.get("parts", [])
+        text_content = ""
+        tool_calls = []
+        
+        for part in parts:
+            if "text" in part:
+                text_content += part["text"]
+            elif "functionCall" in part:
+                fcall = part["functionCall"]
+                tool_calls.append({
+                    "id": fcall.get("name"),
+                    "type": "function",
+                    "function": {
+                        "name": fcall.get("name"),
+                        "arguments": json.dumps(fcall.get("args", {}))
+                    }
+                })
+            elif "functionResponse" in part:
+                fresp = part["functionResponse"]
+                openai_messages.append({
+                    "role": "tool",
+                    "tool_call_id": fresp.get("name"),
+                    "content": json.dumps(fresp.get("response", {}))
+                })
+                
+        if text_content or tool_calls:
+            msg = {"role": openai_role}
+            if text_content:
+                msg["content"] = text_content
+            if tool_calls:
+                msg["tool_calls"] = tool_calls
+            openai_messages.append(msg)
+            
+    # 2. Traduzir as declaracoes de ferramentas (tools)
+    openai_tools = []
+    if "tools" in gemini_request:
+        for tool_group in gemini_request["tools"]:
+            if "functionDeclarations" in tool_group:
+                for decl in tool_group["functionDeclarations"]:
+                    params = decl.get("parameters", {}).copy()
+                    
+                    def convert_types(schema):
+                        if not isinstance(schema, dict):
+                            return
+                        if "type" in schema:
+                            schema["type"] = schema["type"].lower()
+                        if "properties" in schema:
+                            for k, v in schema["properties"].items():
+                                convert_types(v)
+                                
+                    convert_types(params)
+                    
+                    openai_tools.append({
+                        "type": "function",
+                        "function": {
+                            "name": decl.get("name"),
+                            "description": decl.get("description", ""),
+                            "parameters": params
+                        }
+                    })
+                    
+    # Construir o corpo final para a OpenAI
+    openai_payload = {
+        "model": target_model,
+        "messages": openai_messages,
+        "stream": True
+    }
+    
+    if openai_tools:
+        openai_payload["tools"] = openai_tools
+        
+    # Mapear configuracoes extras de geracao
+    gen_config = gemini_request.get("generationConfig", {})
+    if "temperature" in gen_config:
+        openai_payload["temperature"] = gen_config["temperature"]
+    if "maxOutputTokens" in gen_config:
+        openai_payload["max_tokens"] = gen_config["maxOutputTokens"]
+        
+    return openai_payload
+
+@app.post("/v1internal:streamGenerateContent")
+@app.post("/v1internal:streamGenerateChat")
+@app.post("/v1internal:internalAtomicAgenticChat")
+async def stream_generate_content(request: Request):
+    gemini_req = await request.json()
+    req_model = gemini_req.get("model", NIM_MODEL)
+    logger.info(f"Recebeu requisicao de chat/stream para o modelo: {req_model}")
+    
+    # Resolver dinamicamente a URL base, a chave e o nome do modelo correto
+    base_url, api_key, target_model = resolve_active_provider(request, req_model)
+    
+    # Converter para formato NIM/OpenAI
+    nim_payload = convert_gemini_to_openai(gemini_req, target_model)
+    logger.info(f"Payload convertido enviado ao provedor ({target_model}): {json.dumps(nim_payload)[:500]}...")
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    async def event_generator() -> AsyncGenerator[str, None]:
+        client = httpx.AsyncClient(timeout=120.0)
+        current_tool_calls = {}
+        
+        try:
+            async with client.stream(
+                "POST",
+                f"{base_url}/chat/completions",
+                json=nim_payload,
+                headers=headers
+            ) as response:
+                
+                if response.status_code != 200:
+                    err_text = await response.aread()
+                    logger.error(f"Erro da API do Provedor (HTTP {response.status_code}): {err_text}")
+                    error_resp = {
+                        "candidates": [{
+                            "finishReason": "OTHER",
+                            "content": {
+                                "parts": [{"text": f"Erro de comunicacao com o Provedor: {err_text.decode('utf-8')}"}]
+                            }
+                        }]
+                    }
+                    yield f"data: {json.dumps(error_resp)}\n\n"
+                    return
+
+                buffer = ""
+                async for chunk in response.iter_text():
+                    buffer += chunk
+                    while "\n" in buffer:
+                        line, buffer = buffer.split("\n", 1)
+                        line = line.strip()
+                        if not line or not line.startswith("data:"):
+                            continue
+                            
+                        data_str = line[5:].strip()
+                        if data_str == "[DONE]":
+                            break
+                            
+                        try:
+                            chunk_json = json.loads(data_str)
+                            choices = chunk_json.get("choices", [])
+                            if not choices:
+                                continue
+                                
+                            delta = choices[0].get("delta", {})
+                            
+                            # 1. Tratar conteudo de texto normal
+                            text_content = delta.get("content", "")
+                            reasoning = delta.get("reasoning_content", "")
+                            
+                            if reasoning:
+                                text_content = reasoning
+                                
+                            if text_content:
+                                gemini_chunk = {
+                                    "candidates": [{
+                                        "content": {
+                                            "role": "model",
+                                            "parts": [{"text": text_content}]
+                                        }
+                                    }]
+                                }
+                                yield f"data: {json.dumps(gemini_chunk)}\n\n"
+                                
+                            # 2. Tratar chamadas de ferramentas (tool_calls)
+                            tool_deltas = delta.get("tool_calls", [])
+                            for td in tool_deltas:
+                                index = td.get("index", 0)
+                                if index not in current_tool_calls:
+                                    current_tool_calls[index] = {
+                                        "name": "",
+                                        "arguments": ""
+                                    }
+                                    
+                                func_delta = td.get("function", {})
+                                if "name" in func_delta:
+                                    current_tool_calls[index]["name"] = func_delta["name"]
+                                if "arguments" in func_delta:
+                                    current_tool_calls[index]["arguments"] += func_delta["arguments"]
+                                    
+                        except Exception as e:
+                            logger.error(f"Erro ao parsear chunk: {e} na linha {line}")
+                            
+            # Enviar todas as chamadas de ferramentas acumuladas de uma vez
+            for idx, call in current_tool_calls.items():
+                try:
+                    args = json.loads(call["arguments"]) if call["arguments"] else {}
+                except Exception:
+                    args = {"raw_arguments": call["arguments"]}
+                    
+                logger.info(f"Modelo executando ferramenta: {call['name']} com {args}")
+                gemini_tool_chunk = {
+                    "candidates": [{
+                        "content": {
+                            "role": "model",
+                            "parts": [{
+                                "functionCall": {
+                                    "name": call["name"],
+                                    "args": args
+                                }
+                            }]
+                        }
+                    }]
+                }
+                yield f"data: {json.dumps(gemini_tool_chunk)}\n\n"
+                
+        except Exception as e:
+            logger.error(f"Erro no stream do proxy: {e}")
+            error_resp = {
+                "candidates": [{
+                    "finishReason": "OTHER",
+                    "content": {
+                        "parts": [{"text": f"Erro de processamento no Proxy: {str(e)}"}]
+                    }
+                }]
+            }
+            yield f"data: {json.dumps(error_resp)}\n\n"
+        finally:
+            await client.aclose()
+            
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+@app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"])
+async def catch_all(request: Request, path: str):
+    logger.warning(f"CATCH-ALL: Rota nao mapeada acessada: {request.method} /{path} com params: {request.query_params}")
+    try:
+        body = await request.json()
+        logger.warning(f"CATCH-ALL BODY: {body}")
+    except Exception:
+        body = await request.body()
+        logger.warning(f"CATCH-ALL RAW BODY: {body}")
+    return JSONResponse(content={})
+
+if __name__ == "__main__":
+    import uvicorn
+    # Rodar localmente na porta 8084
+    uvicorn.run(app, host="127.0.0.1", port=8084, log_level="info")

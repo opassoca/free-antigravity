@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Free Antigravity — Unified AI Proxy</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Matter.js para simulação física de Antigravidade -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0d19;
+            --card-bg: rgba(20, 24, 46, 0.6);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary-blue: #4285F4;
+            --primary-red: #EA4335;
+            --primary-yellow: #FBBC05;
+            --primary-green: #34A853;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --accent-glow: rgba(66, 133, 244, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            overflow-x: hidden;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Canvas de Física de Fundo */
+        #physics-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+        /* Container Principal */
+        .container {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* Header e Logo */
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            position: relative;
+        }
+
+        /* Introdução Clássica de Cores Google Invertida (Antigravity Style) */
+        .logo-container {
+            display: inline-flex;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 4rem;
+            font-weight: 700;
+            letter-spacing: -2px;
+            user-select: none;
+            cursor: pointer;
+            perspective: 1000px;
+            margin-bottom: 1rem;
+        }
+
+        .logo-letter {
+            display: inline-block;
+            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform-style: preserve-3d;
+        }
+
+        /* Cores originais do Google */
+        .logo-letter:nth-child(1) { color: var(--primary-blue); }
+        .logo-letter:nth-child(2) { color: var(--primary-red); }
+        .logo-letter:nth-child(3) { color: var(--primary-yellow); }
+        .logo-letter:nth-child(4) { color: var(--primary-blue); }
+        .logo-letter:nth-child(5) { color: var(--primary-green); }
+        .logo-letter:nth-child(6) { color: var(--primary-red); }
+
+        /* Animação Antigravity: de cabeça para baixo no hover */
+        .logo-container:hover .logo-letter {
+            transform: rotateX(180deg) translateY(-10px);
+        }
+
+        /* Animação de Entrada Inicial (Google Dots) */
+        .intro-loader {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 2rem;
+        }
+
+        .dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            animation: float-dots 1.6s infinite ease-in-out;
+        }
+
+        .dot:nth-child(1) { background-color: var(--primary-blue); animation-delay: -0.3s; }
+        .dot:nth-child(2) { background-color: var(--primary-red); animation-delay: -0.2s; }
+        .dot:nth-child(3) { background-color: var(--primary-yellow); animation-delay: -0.1s; }
+        .dot:nth-child(4) { background-color: var(--primary-green); }
+
+        @keyframes float-dots {
+            0%, 100% {
+                transform: translateY(0) scale(1);
+            }
+            50% {
+                transform: translateY(-24px) scale(1.2);
+                box-shadow: 0 10px 20px rgba(255, 255, 255, 0.1);
+            }
+        }
+
+        /* Hero Text */
+        .hero {
+            text-align: center;
+            max-width: 700px;
+            margin: 0 auto 4rem auto;
+        }
+
+        .hero h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            line-height: 1.2;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* Grid de Cards */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+            margin-bottom: 4rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(66, 133, 244, 0.1) 0%, transparent 100%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(66, 133, 244, 0.3);
+            box-shadow: 0 12px 40px rgba(66, 133, 244, 0.15);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+        }
+
+        .card h3 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        /* Botoes e Acoes */
+        .actions-panel {
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.8rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            border-radius: 9999px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: none;
+            outline: none;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 10;
+            position: relative;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, #1e40af 100%);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(66, 133, 244, 0.4);
+        }
+
+        .btn-secondary {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            margin-left: 1rem;
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Rodapé */
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border-color);
+            margin-top: auto;
+            z-index: 2;
+        }
+
+        footer a {
+            color: var(--primary-blue);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Efeito de Gravidade Zero / Inversao */
+        .antigravity-active .card {
+            animation: float-away 6s infinite ease-in-out alternate;
+        }
+
+        @keyframes float-away {
+            0% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-15px) rotate(1deg); }
+            100% { transform: translateY(10px) rotate(-1deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Canvas de Fisica de Fundo com Matter.js -->
+    <div id="physics-canvas"></div>
+
+    <div class="container">
+        <!-- Loader / Intro animada -->
+        <div class="intro-loader">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+        </div>
+
+        <header>
+            <div class="logo-container" id="logo">
+                <span class="logo-letter">A</span>
+                <span class="logo-letter">n</span>
+                <span class="logo-letter">t</span>
+                <span class="logo-letter">i</span>
+                <span class="logo-letter">g</span>
+                <span class="logo-letter">r</span>
+                <span class="logo-letter">a</span>
+                <span class="logo-letter">v</span>
+                <span class="logo-letter">i</span>
+                <span class="logo-letter">t</span>
+                <span class="logo-letter">y</span>
+            </div>
+        </header>
+
+        <section class="hero">
+            <h1>Zero-Gravity Unified Proxy</h1>
+            <p>
+                O proxy definitivo compatível com os binários do <strong>Antigravity CLI (agy)</strong> e <strong>Claude Code</strong>. Roteamento inteligente de predições, mapeamento de ferramentas e suporte completo a qualquer provedor de IA com chaves dinâmicas.
+            </p>
+        </section>
+
+        <div class="features-grid">
+            <div class="card">
+                <span class="card-icon">🎛️</span>
+                <h3>Proxy Unificado</h3>
+                <p>O mesmo servidor responde nativamente tanto ao Antigravity CLI (/v1internal) quanto ao Claude Code (/v1/messages) na porta local 8084.</p>
+            </div>
+            <div class="card">
+                <span class="card-icon">🛰️</span>
+                <h3>Múltiplos Backends</h3>
+                <p>Use Nvidia NIM, OpenRouter, DeepSeek nativo, Groq, Mistral ou Ollama local. Suas chaves são resolvidas dinamicamente.</p>
+            </div>
+            <div class="card">
+                <span class="card-icon">🔑</span>
+                <h3>Header Dinâmico</h3>
+                <p>Mude o modelo e o provedor ativo a qualquer chamada enviando no token do cabeçalho o padrão <code>CHAVE:PROVEDOR/MODELO</code>.</p>
+            </div>
+        </div>
+
+        <div class="actions-panel">
+            <button class="btn btn-primary" id="toggle-grav">Inverter Gravidade 🌌</button>
+            <a href="/admin/" class="btn btn-secondary" target="_blank">Acessar Admin Dashboard 🖥️</a>
+        </div>
+    </div>
+
+    <footer>
+        <p>Desenvolvido com 💙 sob a estética de Gravidade Zero. GitHub: <a href="https://github.com/opassoca/free-antigravity" target="_blank">opassoca/free-antigravity</a></p>
+    </footer>
+
+    <script>
+        // Matter.js - Simulação física de Antigravidade
+        const { Engine, Render, Runner, Bodies, Composite, Mouse, MouseConstraint } = Matter;
+
+        const canvasContainer = document.getElementById('physics-canvas');
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        const engine = Engine.create({
+            gravity: { y: -0.05, x: 0 } // Antigravidade suave por padrão (caindo para cima)
+        });
+
+        const render = Render.create({
+            element: canvasContainer,
+            engine: engine,
+            options: {
+                width: width,
+                height: height,
+                wireframes: false,
+                background: 'transparent'
+            }
+        });
+
+        // Limites da tela
+        const wallOptions = { isStatic: true, render: { visible: false } };
+        const ground = Bodies.rectangle(width / 2, height + 30, width, 60, wallOptions);
+        const ceiling = Bodies.rectangle(width / 2, -30, width, 60, wallOptions);
+        const leftWall = Bodies.rectangle(-30, height / 2, 60, height, wallOptions);
+        const rightWall = Bodies.rectangle(width + 30, height / 2, 60, height, wallOptions);
+
+        Composite.add(engine.world, [ground, ceiling, leftWall, rightWall]);
+
+        // Criar letras coloridas e esferas flutuantes
+        const floaters = [];
+        const colors = ['#4285F4', '#EA4335', '#FBBC05', '#34A853'];
+
+        for (let i = 0; i < 25; i++) {
+            const radius = Math.random() * 20 + 15;
+            const x = Math.random() * width;
+            const y = Math.random() * height;
+            
+            const floater = Bodies.circle(x, y, radius, {
+                frictionAir: 0.05,
+                restitution: 0.8,
+                render: {
+                    fillStyle: colors[Math.floor(Math.random() * colors.length)],
+                    opacity: 0.15
+                }
+            });
+            floaters.push(floater);
+        }
+
+        Composite.add(engine.world, floaters);
+
+        // Permitir interação do mouse com os elementos flutuantes
+        const mouse = Mouse.create(render.canvas);
+        const mouseConstraint = MouseConstraint.create(engine, {
+            mouse: mouse,
+            constraint: {
+                stiffness: 0.2,
+                render: { visible: false }
+            }
+        });
+
+        Composite.add(engine.world, mouseConstraint);
+        render.mouse = mouse;
+
+        // Rodar Engine e Renderizador
+        Render.run(render);
+        const runner = Runner.create();
+        Runner.run(runner, engine);
+
+        // Controlar a gravidade interativamente
+        const toggleBtn = document.getElementById('toggle-grav');
+        let inverted = true;
+
+        toggleBtn.addEventListener('click', () => {
+            inverted = !inverted;
+            if (inverted) {
+                engine.gravity.y = -0.08;
+                toggleBtn.textContent = 'Inverter Gravidade 🌌';
+                document.body.classList.add('antigravity-active');
+            } else {
+                engine.gravity.y = 0.15; // Gravidade da Terra
+                toggleBtn.textContent = 'Ativar Antigravidade 🌀';
+                document.body.classList.remove('antigravity-active');
+            }
+        });
+
+        // Efeito de float nos cards do CSS por padrão
+        document.body.classList.add('antigravity-active');
+
+        // Ajustar redimensionamento de tela
+        window.addEventListener('resize', () => {
+            render.canvas.width = window.innerWidth;
+            render.canvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+</html>
