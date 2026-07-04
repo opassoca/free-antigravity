@@ -1,39 +1,51 @@
-# ◈ SYNC ◈
-### *The Master Core of Artificial Intelligence Arsenal*
+# 🌌 Free Antigravity — Unified Zero-Gravity AI Proxy
 
-<div align="center">
-<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&color=90CAF9&center=true&vCenter=true&width=600&lines=SYNC_CORE+ACTIVE;1.+Sua+IA+tem+mais+vontade+de+morrer+que+voce;2.+Processando+mais+erros+que+suas+escolhas+de+vida;3.+O+sistema+nao+falhou,+so+desistiu+de+voce;4.+Se+der+bootloop,+a+culpa+e+do+estagiario;5.+Sincronizando+suas+decepcoes...+[OK];6.+Integridade+verificada+(ao+contrario+da+sua);7.+Otimizado+para+caos+e+café+frio;8.+Apagando+evidencias...+[OK];9.+Sua+licenca+expirou,+assim+como+sua+paciencia;10.+TERMINAL_READY_FOR_DESTRUCTION" alt="Typing SVG" />
-</div>
+🌎 **Choose your language:**
+[English](README.md) | [Português](README.pt-BR.md) | [Español](README.es.md) | [Русский](README.ru.md) | [中文](README.zh.md)
 
 ---
 
-## 🧬 O Coração do Arsenal
-O **SYNC** (Paçoca Deterministic Kernel) é a estrutura unificada que organiza e gerencia os scripts de IA do Arquiteto.
-
-## 🚀 Estrutura Modular
-
-### 🔒 [Master] Auth (`/auth`)
-O painel mestre de identidade. Gerencia tokens e define a conta ativa.
-*   **Truth Source:** `~/.antigravity-auth/google_accounts.json`
-
-### ⚡ [Consumer] Agy3 (`/agy3`)
-Túnel de execução para o motor oficial Gemini CLI.
-
-### 🔄 [Consumer] GMNA (`/gemini-switcher`)
-Seletor de perfis ultra-rápido integrado ao mestre.
+A high-performance unified proxy designed to connect **Antigravity CLI (agy)** and **Claude Code** to any AI provider (Nvidia NIM, OpenRouter, DeepSeek, Mistral, Groq, Ollama) with dynamic key resolution and a zero-gravity physics dashboard.
 
 ---
 
-## 🛠️ Instalação Unificada
+## ⚡ Features
 
-```bash
-gh repo clone opassoca/antigravity
-cd sync
-./install.sh
+*   **Unified Proxy Architecture:** Serves both Antigravity CLI `/v1internal` requests and Claude Code `/v1/messages` on a single local port (`8084`).
+*   **Multi-Provider Engine:** Dynamic integration with Nvidia NIM, OpenRouter, native DeepSeek, Mistral AI, Groq, and local Ollama instances.
+*   **Dynamic Request Headers:** Change the model and provider on-the-fly by formatting your API keys as `YOUR_KEY:PROVIDER/MODEL`.
+*   **Interactive Zero-Gravity Landing Page:** A premium Google-inspired dashboard running **Matter.js 2D physics** where branding letters and cards float freely and react to your mouse pointer.
+
+---
+
+## 🚀 Quick Start
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/opassoca/free-antigravity.git
+    cd free-antigravity
+    ```
+2.  **Configure environment variables:**
+    Copy the `.env.example` file (from the `free-claude-code` directory) and populate it with your provider keys.
+3.  **Run the Server:**
+    ```bash
+    python free-antigravity.py
+    ```
+4.  **Access the Dashboard:**
+    Open `http://localhost:8084` in your browser.
+
+---
+
+## 🛠️ Configuration Details
+
+### Dynamic API Key Header Format
+Format your authentication token to switch backends dynamically:
+```text
+x-api-key: YOUR_API_TOKEN:nvidia/deepseek-ai/deepseek-r1
+x-api-key: YOUR_API_TOKEN:openrouter/google/gemini-2.5-pro
 ```
 
 ---
 
-## 👨‍💻 Créditos & Arquitetura
-**Lead Architect:** [Paçoca (@opassoca)](https://github.com/opassoca)
-<sub>Otimizado com rigor cirúrgico via **Gemini 3 Flash CLI**</sub>
+## 👨‍💻 Credits
+Developed with 💙 by [Paçoca (@opassoca)](https://github.com/opassoca).
