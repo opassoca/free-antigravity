@@ -47,5 +47,14 @@ x-api-key: SU_TOKEN_API:openrouter/google/gemini-2.5-pro
 
 ---
 
+
+## 📱 Ejecución Nativa en Termux
+Específicamente optimizado para Termux en Android. Instale los paquetes y ejecute el servidor proxy unificado fácilmente:
+```bash
+pkg install python ndk-sysroot clang
+pip install -r requirements.txt
+./install.sh
+```
+
 ## 👨‍💻 Créditos
 Desarrollado con 💙 por [Paçoca (@opassoca)](https://github.com/opassoca).

@@ -47,5 +47,14 @@ x-api-key: ВАШ_API_ТОКЕН:openrouter/google/gemini-2.5-pro
 
 ---
 
+
+## 📱 Нативный запуск в Termux
+Специально оптимизирован для Android Termux. Легко устанавливайте пакеты и запускайте единый мост агента:
+```bash
+pkg install python ndk-sysroot clang
+pip install -r requirements.txt
+./install.sh
+```
+
 ## 👨‍💻 Авторы
 Разработано с 💙 [Paçoca (@opassoca)](https://github.com/opassoca).

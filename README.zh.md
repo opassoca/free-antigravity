@@ -47,5 +47,14 @@ x-api-key: YOUR_API_TOKEN:openrouter/google/gemini-2.5-pro
 
 ---
 
+
+## 📱 Termux 原生运行
+专为 Android Termux 优化。轻松安装包并运行统一的代理桥接器：
+```bash
+pkg install python ndk-sysroot clang
+pip install -r requirements.txt
+./install.sh
+```
+
 ## 👨‍💻 贡献者
 由 [Paçoca (@opassoca)](https://github.com/opassoca) 用 💙 开发。

@@ -47,5 +47,14 @@ x-api-key: YOUR_API_TOKEN:openrouter/google/gemini-2.5-pro
 
 ---
 
+
+## 📱 Termux Native Execution
+Specifically optimized for Android Termux. Install packages and run the unified agent bridge easily:
+```bash
+pkg install python ndk-sysroot clang
+pip install -r requirements.txt
+./install.sh
+```
+
 ## 👨‍💻 Credits
 Developed with 💙 by [Paçoca (@opassoca)](https://github.com/opassoca).
