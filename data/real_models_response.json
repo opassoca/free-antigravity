@@ -1,5 +1,133 @@
 {
   "models": {
+    "deepseek-v4-pro": {
+      "displayName": "DeepSeek V4 Pro",
+      "supportsImages": false,
+      "supportsThinking": true,
+      "recommended": true,
+      "maxTokens": 16384,
+      "maxOutputTokens": 8192,
+      "tokenizerType": "LLAMA_WITH_SPECIAL",
+      "quotaInfo": {
+        "remainingFraction": 1,
+        "resetTime": "2026-07-11T23:03:30Z"
+      },
+      "model": "MODEL_PLACEHOLDER_M101",
+      "apiProvider": "API_PROVIDER_GOOGLE_GEMINI",
+      "modelProvider": "MODEL_PROVIDER_GOOGLE"
+    },
+    "deepseek-v4-flash": {
+      "displayName": "DeepSeek V4 Flash",
+      "supportsImages": false,
+      "supportsThinking": false,
+      "recommended": false,
+      "maxTokens": 16384,
+      "maxOutputTokens": 4096,
+      "tokenizerType": "LLAMA_WITH_SPECIAL",
+      "quotaInfo": {
+        "remainingFraction": 1,
+        "resetTime": "2026-07-11T23:03:30Z"
+      },
+      "model": "MODEL_PLACEHOLDER_M102",
+      "apiProvider": "API_PROVIDER_GOOGLE_GEMINI",
+      "modelProvider": "MODEL_PROVIDER_GOOGLE"
+    },
+    "llama-3-1-nemotron-70b-instruct": {
+      "displayName": "Llama 3.1 Nemotron 70B",
+      "supportsImages": false,
+      "supportsThinking": false,
+      "recommended": true,
+      "maxTokens": 16384,
+      "maxOutputTokens": 4096,
+      "tokenizerType": "LLAMA_WITH_SPECIAL",
+      "quotaInfo": {
+        "remainingFraction": 1,
+        "resetTime": "2026-07-11T23:03:30Z"
+      },
+      "model": "MODEL_PLACEHOLDER_M103",
+      "apiProvider": "API_PROVIDER_GOOGLE_GEMINI",
+      "modelProvider": "MODEL_PROVIDER_GOOGLE"
+    },
+    "llama-3-3-70b-instruct": {
+      "displayName": "Llama 3.3 70B Instruct",
+      "supportsImages": false,
+      "supportsThinking": false,
+      "recommended": true,
+      "maxTokens": 16384,
+      "maxOutputTokens": 4096,
+      "tokenizerType": "LLAMA_WITH_SPECIAL",
+      "quotaInfo": {
+        "remainingFraction": 1,
+        "resetTime": "2026-07-11T23:03:30Z"
+      },
+      "model": "MODEL_PLACEHOLDER_M104",
+      "apiProvider": "API_PROVIDER_GOOGLE_GEMINI",
+      "modelProvider": "MODEL_PROVIDER_GOOGLE"
+    },
+    "gemma-4-31b-it": {
+      "displayName": "Gemma 4 31B IT",
+      "supportsImages": true,
+      "supportsThinking": true,
+      "recommended": true,
+      "maxTokens": 16384,
+      "maxOutputTokens": 8192,
+      "tokenizerType": "LLAMA_WITH_SPECIAL",
+      "quotaInfo": {
+        "remainingFraction": 1,
+        "resetTime": "2026-07-11T23:03:30Z"
+      },
+      "model": "MODEL_PLACEHOLDER_M105",
+      "apiProvider": "API_PROVIDER_GOOGLE_GEMINI",
+      "modelProvider": "MODEL_PROVIDER_GOOGLE"
+    },
+    "gemma-3-12b-it": {
+      "displayName": "Gemma 3 12B IT",
+      "supportsImages": true,
+      "supportsThinking": true,
+      "recommended": false,
+      "maxTokens": 16384,
+      "maxOutputTokens": 4096,
+      "tokenizerType": "LLAMA_WITH_SPECIAL",
+      "quotaInfo": {
+        "remainingFraction": 1,
+        "resetTime": "2026-07-11T23:03:30Z"
+      },
+      "model": "MODEL_PLACEHOLDER_M106",
+      "apiProvider": "API_PROVIDER_GOOGLE_GEMINI",
+      "modelProvider": "MODEL_PROVIDER_GOOGLE"
+    },
+    "mistral-large-3-675b": {
+      "displayName": "Mistral Large 3 (675B)",
+      "supportsImages": false,
+      "supportsThinking": false,
+      "recommended": false,
+      "maxTokens": 16384,
+      "maxOutputTokens": 4096,
+      "tokenizerType": "LLAMA_WITH_SPECIAL",
+      "quotaInfo": {
+        "remainingFraction": 1,
+        "resetTime": "2026-07-11T23:03:30Z"
+      },
+      "model": "MODEL_PLACEHOLDER_M107",
+      "apiProvider": "API_PROVIDER_GOOGLE_GEMINI",
+      "modelProvider": "MODEL_PROVIDER_GOOGLE"
+    },
+    "qwen-3-5-397b": {
+      "displayName": "Qwen 3.5 397B",
+      "supportsImages": false,
+      "supportsThinking": false,
+      "recommended": false,
+      "maxTokens": 16384,
+      "maxOutputTokens": 4096,
+      "tokenizerType": "LLAMA_WITH_SPECIAL",
+      "quotaInfo": {
+        "remainingFraction": 1,
+        "resetTime": "2026-07-11T23:03:30Z"
+      },
+      "model": "MODEL_PLACEHOLDER_M108",
+      "apiProvider": "API_PROVIDER_GOOGLE_GEMINI",
+      "modelProvider": "MODEL_PROVIDER_GOOGLE"
+    },
     "claude-opus-4-6-thinking": {
       "displayName": "Claude Opus 4.6 (Thinking)",
       "supportsImages": true,

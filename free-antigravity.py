@@ -234,6 +234,20 @@ def resolve_active_provider(request: Request, default_model: str) -> tuple[str, 
     # Determinar qual o modelo a ser usado (do payload da request, override de cabecalho ou default_model)
     target_model = model_override or default_model
     
+    # Mapeamento de fallbacks nativos para os 8 modelos customizados caso selecionados sem provider
+    NATIVE_FALLBACKS = {
+        "deepseek-v4-pro": "nvidia/deepseek-ai/deepseek-v4-pro",
+        "deepseek-v4-flash": "nvidia/deepseek-ai/deepseek-v4-flash",
+        "llama-3-1-nemotron-70b-instruct": "nvidia/nvidia/llama-3.1-nemotron-70b-instruct",
+        "llama-3-3-70b-instruct": "nvidia/meta/llama-3.3-70b-instruct",
+        "gemma-4-31b-it": "nvidia/google/gemma-4-31b-it",
+        "gemma-3-12b-it": "nvidia/google/gemma-3-12b-it",
+        "mistral-large-3-675b": "nvidia/mistralai/mistral-large-3-675b-instruct-2512",
+        "qwen-3-5-397b": "nvidia/qwen/qwen3.5-397b-a17b"
+    }
+    if target_model in NATIVE_FALLBACKS:
+        target_model = NATIVE_FALLBACKS[target_model]
+    
     # Extrair provedor e nome do modelo a partir do formato provider/model_name
     provider = "nvidia_nim"
     model_name = target_model
