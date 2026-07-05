@@ -147,3 +147,7 @@ cython_debug/
 .vscode/
 *.swp
 *.swo
+
+# Local data
+data/certs/
+data/usage_stats.json

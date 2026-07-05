@@ -1,6 +1,5 @@
 import os
 import sys
-import logging
 from dotenv import load_dotenv
 
 # Carregar configuracoes locais do proprio .env se disponivel na raiz do script
@@ -20,11 +19,8 @@ if os.path.exists(FCC_ENV_PATH):
     load_dotenv(FCC_ENV_PATH)
 
 # Configurar Logs
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-)
-logger = logging.getLogger("FreeAntigravity")
+from loguru import logger
+
 
 # Chaves API e URLs padrao obtidas do .env
 NVIDIA_NIM_API_KEY = os.environ.get("NVIDIA_NIM_API_KEY", "")

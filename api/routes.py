@@ -10,8 +10,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse
 
+from loguru import logger
 from config.settings import (
-    logger,
     PROVIDER_CONFIGS,
     NIM_MODEL,
     MOCK_EMAIL,
@@ -22,7 +22,9 @@ from providers.manager import (
     record_token_usage,
     resolve_active_provider,
     convert_gemini_to_openai,
-    REVERSE_MODEL_MAP
+    REVERSE_MODEL_MAP,
+    start_background_tasks,
+    stop_background_tasks
 )
 
 # Tentar importar de forma lazy os roteadores e runtime do free-claude-code
@@ -212,6 +214,7 @@ def restore_original_credentials():
 async def app_lifespan(app: FastAPI):
     """Lifespan que inicializa o AppRuntime do free-claude-code se disponivel e configura conta fake."""
     setup_mock_credentials()
+    await start_background_tasks()
     
     runtime = None
     if AppRuntime and get_settings:
@@ -232,6 +235,7 @@ async def app_lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Erro ao finalizar AppRuntime no lifespan: {e}")
             
+    await stop_background_tasks()
     restore_original_credentials()
 
 app = FastAPI(title="Free Antigravity API Server", lifespan=app_lifespan)
@@ -245,7 +249,54 @@ if fcc_admin_router:
 @app.post("/v1internal:onboardUser")
 async def onboard_user(request: Request):
     logger.info("onboardUser chamado")
+    return JSONResponse(content={
+        "name": "operations/mock-onboard-op",
+        "metadata": {
+            "@type": "type.googleapis.com/google.internal.cloud.code.v1internal.OnboardUserOperationMetadata"
+        },
+        "done": True,
+        "response": {
+            "@type": "type.googleapis.com/google.internal.cloud.code.v1internal.OnboardUserResponse",
+            "cloudaicompanionProject": "mock-project",
+            "cloudaicompanion_project": "mock-project",
+            "releaseChannel": "STABLE",
+            "release_channel": "STABLE",
+            "status": {
+                "statusCode": "ACTIVE",
+                "status_code": "ACTIVE",
+                "displayMessage": "User onboarded successfully",
+                "display_message": "User onboarded successfully"
+            }
+        }
+    })
+
+@app.post("/v1internal:onboardUserBackgroundTasks")
+async def onboard_user_background_tasks(request: Request):
+    logger.info("onboardUserBackgroundTasks chamado")
     return JSONResponse(content={})
+
+# Endpoint mockado para simular a API do Google OAuth2 userinfo
+# O binario agy faz GET https://www.googleapis.com/oauth2/v2/userinfo
+# O proxy MITM intercepta essa chamada e redireciona para ca
+@app.get("/oauth2/v2/userinfo")
+async def google_oauth2_userinfo(request: Request):
+    logger.info("Google OAuth2 userinfo mockado chamado")
+    return JSONResponse(content={
+        "id": "115126167026707501557",
+        "email": MOCK_EMAIL,
+        "verified_email": True,
+        "name": "Pacoca",
+        "given_name": "Pacoca",
+        "picture": "https://lh3.googleusercontent.com/a/ACg8ocKfYvQJBLdPrhkuR-dvy4Tb_VoGgHqUSfmXYGqpePTb3ZH6TBk=s96-c",
+        "locale": "pt-BR"
+    })
+
+@app.get("/v1internal:quotaSummary")
+@app.get("/v1internal/quota")
+async def get_realtime_quota_summary():
+    from providers.manager import token_tracker
+    logger.info("Requisicao de cota em tempo real recebida")
+    return JSONResponse(content=token_tracker.get_summary())
 
 async def log_request_details(request: Request, endpoint_name: str):
     """Log detalhado de headers e body para debug."""
@@ -433,113 +484,81 @@ async def stream_generate_content(request: Request):
     gemini_req = await request.json()
     req_model = gemini_req.get("model", NIM_MODEL)
     logger.info(f"Recebeu requisicao de chat/stream para o modelo: {req_model}")
-    
-    # Resolver dinamicamente a URL base, a chave e o nome do modelo correto
-    base_url, api_key, target_model = await resolve_active_provider(request, req_model)
+       # Resolver dinamicamente a instancia do provedor, a chave e o nome do modelo correto
+    provider, api_key, target_model = await resolve_active_provider(request, req_model)
     
     # Converter para formato NIM/OpenAI
     nim_payload = convert_gemini_to_openai(gemini_req, target_model)
-    logger.info(f"Payload convertido enviado ao provedor ({target_model}): {json.dumps(nim_payload)[:500]}...")
-    
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
+    logger.info(f"Payload convertido enviado ao provedor '{provider.name}' ({target_model}): {json.dumps(nim_payload)[:500]}...")
     
     async def event_generator() -> AsyncGenerator[str, None]:
-        client = httpx.AsyncClient(timeout=120.0)
         current_tool_calls = {}
         
         try:
-            async with client.stream(
-                "POST",
-                f"{base_url}/chat/completions",
-                json=nim_payload,
-                headers=headers
-            ) as response:
-                
-                if response.status_code != 200:
-                    err_text = await response.aread()
-                    logger.error(f"Erro da API do Provedor (HTTP {response.status_code}): {err_text}")
+            async for chunk_json in provider.stream_response(target_model, nim_payload, api_key):
+                if "error" in chunk_json:
+                    err_msg = chunk_json["error"]
+                    logger.error(f"Erro da API do Provedor '{provider.name}': {err_msg}")
                     error_resp = {
                         "candidates": [{
                             "finishReason": "OTHER",
                             "content": {
-                                "parts": [{"text": f"Erro de comunicacao com o Provedor: {err_text.decode('utf-8')}"}]
+                                "parts": [{"text": f"Erro de comunicacao com o Provedor '{provider.name}': {err_msg}"}]
                             }
                         }]
                     }
                     yield f"data: {json.dumps(error_resp)}\n\n"
                     return
 
-                buffer = ""
-                async for chunk in response.iter_text():
-                    buffer += chunk
-                    while "\n" in buffer:
-                        line, buffer = buffer.split("\n", 1)
-                        line = line.strip()
-                        if not line or not line.startswith("data:"):
-                            continue
-                            
-                        data_str = line[5:].strip()
-                        if data_str == "[DONE]":
-                            break
-                            
-                        try:
-                            chunk_json = json.loads(data_str)
-                            
-                            # Interceptar consumo oficial de tokens e salvar estatisticas
-                            usage = chunk_json.get("usage")
-                            if usage:
-                                prompt_tokens = usage.get("prompt_tokens", 0)
-                                completion_tokens = usage.get("completion_tokens", 0)
-                                if prompt_tokens or completion_tokens:
-                                    logger.info(f"Consumo retornado pelo provedor: Input={prompt_tokens}, Output={completion_tokens}")
-                                    await record_token_usage(target_model, prompt_tokens, completion_tokens)
-                                    
-                            choices = chunk_json.get("choices", [])
-                            if not choices:
-                                continue
-                                
-                            delta = choices[0].get("delta", {})
-                            
-                            # 1. Tratar conteudo de texto normal
-                            text_content = delta.get("content", "")
-                            reasoning = delta.get("reasoning_content", "")
-                            
-                            if reasoning:
-                                text_content = reasoning
-                                
-                            if text_content:
-                                gemini_chunk = {
-                                    "candidates": [{
-                                        "content": {
-                                            "role": "model",
-                                            "parts": [{"text": text_content}]
-                                        }
-                                    }]
-                                }
-                                yield f"data: {json.dumps(gemini_chunk)}\n\n"
-                                
-                            # 2. Tratar chamadas de ferramentas (tool_calls)
-                            tool_deltas = delta.get("tool_calls", [])
-                            for td in tool_deltas:
-                                index = td.get("index", 0)
-                                if index not in current_tool_calls:
-                                    current_tool_calls[index] = {
-                                        "name": "",
-                                        "arguments": ""
-                                    }
-                                    
-                                func_delta = td.get("function", {})
-                                if "name" in func_delta:
-                                    current_tool_calls[index]["name"] = func_delta["name"]
-                                if "arguments" in func_delta:
-                                    current_tool_calls[index]["arguments"] += func_delta["arguments"]
-                                    
-                        except Exception as e:
-                            logger.error(f"Erro ao parsear chunk: {e} na linha {line}")
-                            
+                # Interceptar consumo oficial de tokens e salvar estatisticas
+                usage = chunk_json.get("usage")
+                if usage:
+                    prompt_tokens = usage.get("prompt_tokens", 0)
+                    completion_tokens = usage.get("completion_tokens", 0)
+                    if prompt_tokens or completion_tokens:
+                        logger.info(f"Consumo retornado pelo provedor '{provider.name}': Input={prompt_tokens}, Output={completion_tokens}")
+                        await record_token_usage(target_model, prompt_tokens, completion_tokens)
+                        
+                choices = chunk_json.get("choices", [])
+                if not choices:
+                    continue
+                    
+                delta = choices[0].get("delta", {})
+                
+                # 1. Tratar conteudo de texto normal
+                text_content = delta.get("content", "")
+                reasoning = delta.get("reasoning_content", "")
+                
+                if reasoning:
+                    text_content = reasoning
+                    
+                if text_content:
+                    gemini_chunk = {
+                        "candidates": [{
+                            "content": {
+                                "role": "model",
+                                "parts": [{"text": text_content}]
+                            }
+                        }]
+                    }
+                    yield f"data: {json.dumps(gemini_chunk)}\n\n"
+                    
+                # 2. Tratar chamadas de ferramentas (tool_calls)
+                tool_deltas = delta.get("tool_calls", [])
+                for td in tool_deltas:
+                    index = td.get("index", 0)
+                    if index not in current_tool_calls:
+                        current_tool_calls[index] = {
+                            "name": "",
+                            "arguments": ""
+                        }
+                        
+                    func_delta = td.get("function", {})
+                    if "name" in func_delta:
+                        current_tool_calls[index]["name"] = func_delta["name"]
+                    if "arguments" in func_delta:
+                        current_tool_calls[index]["arguments"] += func_delta["arguments"]
+                        
             # Enviar todas as chamadas de ferramentas acumuladas de uma vez
             for idx, call in current_tool_calls.items():
                 try:
@@ -574,8 +593,6 @@ async def stream_generate_content(request: Request):
                 }]
             }
             yield f"data: {json.dumps(error_resp)}\n\n"
-        finally:
-            await client.aclose()
             
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
