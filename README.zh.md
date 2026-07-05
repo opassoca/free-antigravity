@@ -12,8 +12,15 @@
 
 ## 🧠 模型路由工作原理
 
-1. **视觉选择 (`agy -model`)**: 交互式 CLI 菜单显示在 `data/real_models_response.json` 中映射的模型。您可以在此处选择任何选项以满足 CLI 协议握手。
-2. **实际动态路由**: 代理拦截 CLI 请求并检查您的 API 密钥。通过将您的密钥格式化为 `YOUR_KEY:PROVIDER/MODEL`（在 `.env` 文件或请求头中），代理会绕过 CLI 选择，直接将提示路由到您所需的后端模型。
+1. **动态模型发现**: 代理会自动查询您 `.env` 文件中配置的活动提供商 (Nvidia NIM, OpenRouter 等)，使用基于 TTL 的机制缓存其模型目录，并将其统一整合至 `agy -model` 选择菜单中 (动态提供 140+ 种选项)。
+2. **扁平化 ID 解析**: 为 CLI 菜单生成的扁平化 ID (例如 `nvidia-deepseek-ai-deepseek-v4-pro`) 在启动对话时，会被透明地映射回原始的提供商 ID (例如 `nvidia/deepseek-ai/deepseek-v4-pro`)。
+3. **手动覆盖**: 您仍然可以通过在 `.env` 中配置 `MODEL_MAP_*` 变量，或者通过传入格式为 `YOUR_KEY:PROVIDER/MODEL` 的密钥，来动态路由到特定的后端。
+
+## 📊 Token 使用量与配额跟踪
+
+*   **实际消耗跟踪**: 代理拦截器提取流式响应分块 (stream response chunks) 中返回的官方 Token 指标 (`prompt_tokens` 和 `completion_tokens`)。
+*   **持久化统计**: 使用数据本地存储在 `data/usage_stats.json` 中。
+*   **真实配额扣除**: `/v1internal:retrieveUserQuotaSummary` 接口会动态读取您的累计消耗，并在 `agy` CLI 标题中无缝报告剩余配额。
 
 ## ⚡ 特性
 

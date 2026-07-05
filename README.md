@@ -12,8 +12,15 @@ A high-performance unified proxy designed to connect **Antigravity CLI (agy)** a
 
 ## 🧠 How Model Routing Works
 
-1. **Visual Selection (`agy -model`)**: The interactive CLI menu displays the models mapped in `data/real_models_response.json`. You can select any option there to satisfy the CLI protocol handshake.
-2. **Actual Dynamic Routing**: The proxy intercepts the CLI request and checks your API key. By formatting your key as `YOUR_KEY:PROVIDER/MODEL` (either in your `.env` file or in the request headers), the proxy bypasses the CLI selection and routes the prompt directly to your desired backend model.
+1. **Dynamic Model Discovery**: The proxy automatically queries the active providers configured in your `.env` (Nvidia NIM, OpenRouter, etc.), caches their model catalogs with a TTL-based mechanism, and unifies them into the `agy -model` selection menu (offering 140+ options dynamically).
+2. **Flat ID Resolution**: Flat IDs generated for the CLI menu (e.g., `nvidia-deepseek-ai-deepseek-v4-pro`) are transparently mapped back to original provider IDs (e.g., `nvidia/deepseek-ai/deepseek-v4-pro`) upon starting conversations.
+3. **Manual Overrides**: You can still route to specific backends dynamically by configuring `MODEL_MAP_*` variables in your `.env` or passing keys formatted as `YOUR_KEY:PROVIDER/MODEL`.
+
+## 📊 Token Usage & Quota Tracking
+
+*   **Real Consumption tracking**: The proxy interceptor extracts official token metrics (`prompt_tokens` and `completion_tokens`) returned in stream response chunks.
+*   **Persisted Stats**: Usage data is stored locally in `data/usage_stats.json`.
+*   **True Quota Deductions**: The `/v1internal:retrieveUserQuotaSummary` endpoint dynamically reads your accumulated consumption and reports remaining quota seamlessly in the `agy` CLI header.
 
 ## ⚡ Features
 

@@ -83,53 +83,117 @@ NVIDIA_NIM_API_KEY = os.environ.get("NVIDIA_NIM_API_KEY", "")
 NIM_MODEL = os.environ.get("NIM_MODEL", "deepseek-ai/deepseek-r1")
 NIM_BASE_URL = "https://integrate.api.nvidia.com/v1"
 
-# Cache global para modelos dinamicos obtidos de APIs de provedores
-DYNAMIC_MODELS_CACHE = {}
-# Mapeamento reverso global de IDs achatados para os IDs originais com provedores
-REVERSE_MODEL_MAP = {}
+# Cache global para modelos dinamicos mapeados por provedor
+DYNAMIC_PROVIDERS_CACHE = {}  # ex: {"nvidia": {...}, "openrouter": {...}}
+REVERSE_MODEL_MAP = {}       # ex: {"nvidia-google-gemma-4-31b-it": "nvidia/google/gemma-4-31b-it"}
+CACHE_TIMESTAMPS = {}
+CACHE_TTL = 300  # 5 minutos de TTL
 
-async def fetch_nvidia_nim_models() -> dict:
-    global DYNAMIC_MODELS_CACHE, REVERSE_MODEL_MAP
-    if DYNAMIC_MODELS_CACHE:
-        return DYNAMIC_MODELS_CACHE
+# Lock para evitar condicoes de corrida ao gravar estatisticas de cota/tokens
+stats_lock = asyncio.Lock()
 
-    api_key = os.environ.get("NVIDIA_NIM_API_KEY") or NVIDIA_NIM_API_KEY
-    if not api_key:
-        logger.warning("NVIDIA_NIM_API_KEY nao encontrada ao buscar modelos dinamicos.")
+# Configurações de provedores suportados para busca automatica de modelos
+PROVIDER_CONFIGS = {
+    "nvidia": {
+        "env_key": "NVIDIA_NIM_API_KEY",
+        "url": "https://integrate.api.nvidia.com/v1/models",
+        "prefix": "nvidia-",
+        "route_prefix": "nvidia/"
+    },
+    "openrouter": {
+        "env_key": "OPENROUTER_API_KEY",
+        "url": "https://openrouter.ai/api/v1/models",
+        "prefix": "openrouter-",
+        "route_prefix": "openrouter/"
+    },
+    "deepseek": {
+        "env_key": "DEEPSEEK_API_KEY",
+        "url": "https://api.deepseek.com/models",
+        "prefix": "deepseek-",
+        "route_prefix": "deepseek/"
+    },
+    "groq": {
+        "env_key": "GROQ_API_KEY",
+        "url": "https://api.groq.com/openai/v1/models",
+        "prefix": "groq-",
+        "route_prefix": "groq/"
+    },
+    "mistral": {
+        "env_key": "MISTRAL_API_KEY",
+        "url": "https://api.mistral.ai/v1/models",
+        "prefix": "mistral-",
+        "route_prefix": "mistral/"
+    }
+}
+
+import time
+
+async def fetch_provider_models(provider_name: str) -> dict:
+    global DYNAMIC_PROVIDERS_CACHE, REVERSE_MODEL_MAP, CACHE_TIMESTAMPS
+    
+    cfg = PROVIDER_CONFIGS.get(provider_name)
+    if not cfg:
         return {}
-
-    url = f"{NIM_BASE_URL}/models"
+        
+    api_key = os.environ.get(cfg["env_key"]) or (NVIDIA_NIM_API_KEY if provider_name == "nvidia" else "")
+    
+    # Tentar ler do free-claude-code env importado se nao estiver local
+    if not api_key and get_settings:
+        try:
+            settings = get_settings()
+            api_key = getattr(settings, cfg["env_key"].lower(), "")
+        except Exception:
+            pass
+            
+    if not api_key:
+        DYNAMIC_PROVIDERS_CACHE.pop(provider_name, None)
+        return {}
+        
+    # Verificar TTL do cache
+    now = time.time()
+    last_update = CACHE_TIMESTAMPS.get(provider_name, 0)
+    if provider_name in DYNAMIC_PROVIDERS_CACHE and (now - last_update) < CACHE_TTL:
+        return DYNAMIC_PROVIDERS_CACHE[provider_name]
+        
+    url = cfg["url"]
     headers = {"Authorization": f"Bearer {api_key}"}
+    if provider_name == "openrouter":
+        headers["HTTP-Referer"] = "https://github.com/opassoca/free-antigravity"
+        headers["X-Title"] = "Free Antigravity Proxy"
 
     try:
-        logger.info(f"Buscando catalogo completo de modelos da NVIDIA NIM de {url}...")
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        logger.info(f"Atualizando cache do provedor '{provider_name}' de {url}...")
+        async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.get(url, headers=headers)
             if resp.status_code == 200:
                 data = resp.json()
                 models_list = data.get("data", [])
+                if not isinstance(models_list, list):
+                    models_list = data if isinstance(data, list) else []
+                    
                 dynamic_dict = {}
-                counter = 200
+                counter = 300 + (list(PROVIDER_CONFIGS.keys()).index(provider_name) * 200)
                 for m in models_list:
+                    if not isinstance(m, dict):
+                        continue
                     orig_id = m.get("id")
                     if not orig_id:
                         continue
-                    # Gerar um ID achatado e limpo (ex: "nvidia/google/gemma-4-31b-it" -> "nvidia-google-gemma-4-31b-it")
-                    # Para compatibilidade com a CLI (que nao aceita barras nos IDs de modelo)
+                        
+                    # Gerar ID achatado amigavel
                     flat_id = orig_id.replace("/", "-").replace("_", "-").replace(".", "-").lower()
-                    if not flat_id.startswith("nvidia-"):
-                        flat_id = f"nvidia-{flat_id}"
+                    if not flat_id.startswith(cfg["prefix"]):
+                        flat_id = f"{cfg['prefix']}{flat_id}"
+                        
+                    # Mapeamento reverso para roteamento
+                    REVERSE_MODEL_MAP[flat_id] = f"{cfg['route_prefix']}{orig_id}"
                     
-                    # Mapeamento reverso para roteamento posterior
-                    REVERSE_MODEL_MAP[flat_id] = f"nvidia/{orig_id}"
+                    # Nome amigavel
+                    provider_tag = provider_name.upper()
+                    friendly_name = orig_id.split("/")[-1].replace("-", " ").replace("_", " ").title()
+                    display_name = f"{friendly_name} (via {provider_tag})"
                     
-                    # Formatar nome amigavel
-                    provider_part = orig_id.split("/")[0].upper() if "/" in orig_id else "NVIDIA"
-                    model_name = orig_id.split("/")[-1].replace("-", " ").replace("_", " ").title()
-                    display_name = f"{model_name} (via {provider_part})"
-                    
-                    # Determinar suporte a pensamento/imagens a partir do ID
-                    supports_thinking = "reason" in orig_id.lower() or "deepseek-r1" in orig_id.lower()
+                    supports_thinking = "reason" in orig_id.lower() or "deepseek-r1" in orig_id.lower() or "thinking" in orig_id.lower()
                     supports_images = "vision" in orig_id.lower() or "vl" in orig_id.lower() or "multimodal" in orig_id.lower()
                     
                     dynamic_dict[flat_id] = {
@@ -144,23 +208,56 @@ async def fetch_nvidia_nim_models() -> dict:
                             "remainingFraction": 1,
                             "resetTime": "2026-07-11T23:03:30Z"
                         },
-                        "model": f"MODEL_PLACEHOLDER_D{counter}",
+                        "model": f"MODEL_PLACEHOLDER_DP{counter}",
                         "apiProvider": "API_PROVIDER_GOOGLE_GEMINI",
                         "modelProvider": "MODEL_PROVIDER_GOOGLE"
                     }
                     counter += 1
                 
-                DYNAMIC_MODELS_CACHE = dynamic_dict
-                logger.info(f"Carregados {len(dynamic_dict)} modelos dinamicos da NVIDIA NIM com sucesso!")
-                return DYNAMIC_MODELS_CACHE
+                DYNAMIC_PROVIDERS_CACHE[provider_name] = dynamic_dict
+                CACHE_TIMESTAMPS[provider_name] = now
+                logger.info(f"Carregados {len(dynamic_dict)} modelos dinamicos do provedor '{provider_name}' com sucesso!")
+                return dynamic_dict
             else:
-                logger.error(f"Erro ao buscar modelos da NVIDIA NIM: {resp.status_code} {resp.text}")
+                logger.error(f"Erro ao buscar modelos de '{provider_name}': {resp.status_code}")
     except Exception as e:
-        logger.error(f"Excecao ao buscar modelos da NVIDIA NIM: {e}")
-    return {}
+        logger.error(f"Excecao ao carregar modelos de '{provider_name}': {e}")
+        
+    return DYNAMIC_PROVIDERS_CACHE.get(provider_name, {})
 
-if not NVIDIA_NIM_API_KEY:
-    logger.warning("NVIDIA_NIM_API_KEY nao configurada no .env!")
+async def record_token_usage(model_name: str, prompt_tokens: int, completion_tokens: int):
+    """Grava o consumo real de tokens das chamadas em arquivo JSON para contagem de cota."""
+    global stats_lock
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    stats_dir = os.path.join(base_dir, "data")
+    os.makedirs(stats_dir, exist_ok=True)
+    stats_path = os.path.join(stats_dir, "usage_stats.json")
+    
+    async with stats_lock:
+        stats = {"total_tokens_consumed": 0, "models": {}}
+        if os.path.exists(stats_path):
+            try:
+                with open(stats_path, "r") as f:
+                    stats = json.load(f)
+            except Exception:
+                pass
+                
+        total = prompt_tokens + completion_tokens
+        stats["total_tokens_consumed"] = stats.get("total_tokens_consumed", 0) + total
+        
+        models_data = stats.setdefault("models", {})
+        model_stats = models_data.setdefault(model_name, {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0})
+        
+        model_stats["input_tokens"] += prompt_tokens
+        model_stats["output_tokens"] += completion_tokens
+        model_stats["total_tokens"] += total
+        
+        try:
+            with open(stats_path, "w") as f:
+                json.dump(stats, f, indent=2)
+            logger.info(f"Consumo registrado: +{total} tokens para {model_name}. Acumulado: {stats['total_tokens_consumed']}")
+        except Exception as e:
+            logger.error(f"Erro ao salvar estatisticas de consumo: {e}")
 
 @app.post("/v1internal:onboardUser")
 async def onboard_user(request: Request):
@@ -223,10 +320,25 @@ async def set_user_settings(request: Request):
 @app.post("/v1internal:retrieveUserQuotaSummary")
 async def retrieve_quota(request: Request):
     await log_request_details(request, "retrieveUserQuotaSummary")
+    quota_limit = 1000000  # 1 Milhao de tokens de cota limite padrão
+    consumed = 0
+    
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    stats_path = os.path.join(base_dir, "data", "usage_stats.json")
+    if os.path.exists(stats_path):
+        try:
+            with open(stats_path, "r") as f:
+                stats = json.load(f)
+                consumed = stats.get("total_tokens_consumed", 0)
+        except Exception:
+            pass
+            
+    quota_remaining = max(0, quota_limit - consumed)
+    
     return JSONResponse(content={
-        "quotaLimit": 100000,
-        "quotaRemaining": 100000,
-        "resetTime": "2026-07-06T00:00:00Z"
+        "quotaLimit": quota_limit,
+        "quotaRemaining": quota_remaining,
+        "resetTime": "2026-07-12T00:00:00Z"
     })
 
 @app.post("/v1internal:listExperiments")
@@ -250,12 +362,20 @@ async def fetch_models(request: Request):
         with open(json_path, "r") as f:
             data = json.load(f)
             
-    # 2. Buscar catalogo dinâmico completo da NVIDIA NIM
-    nim_models = await fetch_nvidia_nim_models()
-    if nim_models:
+    # 2. Buscar catalogo dinamico completo de todos os provedores configurados em paralelo
+    providers = list(PROVIDER_CONFIGS.keys())
+    tasks = [fetch_provider_models(p) for p in providers]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    all_dynamic_models = {}
+    for prov_models in results:
+        if isinstance(prov_models, dict) and prov_models:
+            all_dynamic_models.update(prov_models)
+            
+    if all_dynamic_models:
         # Mesclar modelos dinamicos no inicio para maior visibilidade
         merged_models = {}
-        merged_models.update(nim_models)
+        merged_models.update(all_dynamic_models)
         merged_models.update(data.get("models", {}))
         data["models"] = merged_models
         
@@ -321,10 +441,16 @@ async def resolve_active_provider(request: Request, default_model: str) -> tuple
     # Determinar qual o modelo a ser usado (do payload da request, override de cabecalho ou default_model)
     target_model = model_override or default_model
     
-    # Se o modelo solicitado comecar com o prefixo do provedor e nao estiver mapeado, tentar forcar a atualizacao do catalogo
-    if target_model and target_model.startswith("nvidia-") and target_model not in REVERSE_MODEL_MAP:
-        logger.info(f"Modelo dinamico '{target_model}' nao encontrado no cache. Atualizando catalogo de modelos...")
-        await fetch_nvidia_nim_models()
+    # Se o modelo solicitado comecar com o prefixo de algum provedor e nao estiver mapeado, tentar forcar a atualizacao
+    if target_model:
+        matched_provider = None
+        for p, cfg in PROVIDER_CONFIGS.items():
+            if target_model.startswith(cfg["prefix"]):
+                matched_provider = p
+                break
+        if matched_provider and target_model not in REVERSE_MODEL_MAP:
+            logger.info(f"Modelo dinamico '{target_model}' nao encontrado no cache. Atualizando provedor '{matched_provider}'...")
+            await fetch_provider_models(matched_provider)
 
     # Se o modelo solicitado estiver no mapeamento reverso dinamico, traduzi-lo de volta
     if target_model in REVERSE_MODEL_MAP:
@@ -491,7 +617,8 @@ def convert_gemini_to_openai(gemini_request: dict, target_model: str) -> dict:
     openai_payload = {
         "model": target_model,
         "messages": openai_messages,
-        "stream": True
+        "stream": True,
+        "stream_options": {"include_usage": True}
     }
     
     if openai_tools:
@@ -567,6 +694,16 @@ async def stream_generate_content(request: Request):
                             
                         try:
                             chunk_json = json.loads(data_str)
+                            
+                            # Interceptar consumo oficial de tokens e salvar estatisticas
+                            usage = chunk_json.get("usage")
+                            if usage:
+                                prompt_tokens = usage.get("prompt_tokens", 0)
+                                completion_tokens = usage.get("completion_tokens", 0)
+                                if prompt_tokens or completion_tokens:
+                                    logger.info(f"Consumo retornado pelo provedor: Input={prompt_tokens}, Output={completion_tokens}")
+                                    await record_token_usage(target_model, prompt_tokens, completion_tokens)
+                                    
                             choices = chunk_json.get("choices", [])
                             if not choices:
                                 continue

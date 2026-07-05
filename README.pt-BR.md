@@ -12,8 +12,15 @@ Um proxy unificado de alta performance projetado para conectar o **Antigravity C
 
 ## 🧠 Como Funciona o Roteamento de Modelos
 
-1. **Seleção Visual (`agy -model`)**: O menu interativo da CLI exibe os modelos mapeados em `data/real_models_response.json`. Você pode selecionar qualquer opção lá para satisfazer o handshake do protocolo da CLI.
-2. **Roteamento Dinâmico Real**: O proxy intercepta a requisição da CLI e verifica a sua chave de API. Ao formatar sua chave como `SUA_CHAVE:PROVEDOR/MODELO` (seja no arquivo `.env` ou nos cabeçalhos da requisição), o proxy ignora a seleção da CLI e direciona o prompt diretamente para o modelo de backend desejado.
+1. **Descoberta Dinâmica de Modelos**: O proxy consulta automaticamente os provedores ativos configurados em seu `.env` (Nvidia NIM, OpenRouter, etc.), faz o cache de seus catálogos de modelos com um mecanismo baseado em TTL e os unifica no menu de seleção `agy -model` (oferecendo dinamicamente mais de 140 opções).
+2. **Resolução de ID Plano (Flat ID)**: IDs planos gerados para o menu da CLI (por exemplo, `nvidia-deepseek-ai-deepseek-v4-pro`) são mapeados de forma transparente de volta aos IDs originais do provedor (por exemplo, `nvidia/deepseek-ai/deepseek-v4-pro`) ao iniciar conversas.
+3. **Substituições Manuais**: Você ainda pode rotear para backends específicos dinamicamente configurando variáveis `MODEL_MAP_*` em seu `.env` ou passando chaves formatadas como `SUA_CHAVE:PROVEDOR/MODELO`.
+
+## 📊 Rastreamento de Uso de Tokens e Cota
+
+*   **Rastreamento de Consumo Real**: O interceptador do proxy extrai métricas de tokens oficiais (`prompt_tokens` e `completion_tokens`) retornadas em pedaços (chunks) de resposta de fluxo (stream).
+*   **Estatísticas Persistidas**: Os dados de uso são armazenados localmente em `data/usage_stats.json`.
+*   **Dedução Real de Cota**: O endpoint `/v1internal:retrieveUserQuotaSummary` lê dinamicamente seu consumo acumulado e reporta a cota restante perfeitamente no cabeçalho da CLI `agy`.
 
 ## ⚡ Recursos
 

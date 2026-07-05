@@ -12,8 +12,15 @@ Un proxy unificado de alto rendimiento diseñado para conectar **Antigravity CLI
 
 ## 🧠 Cómo Funciona el Enrutamiento de Modelos
 
-1. **Selección Visual (`agy -model`)**: El menú interactivo de la CLI muestra los modelos mapeados en `data/real_models_response.json`. Puede seleccionar cualquier opción allí para satisfacer el saludo del protocolo de la CLI.
-2. **Enrutamiento Dinámico Real**: El proxy intercepta la solicitud de la CLI y verifica su clave API. Al formatear su clave como `SU_CLAVE:PROVEEDOR/MODELO` (ya sea en el archivo `.env` mediante variables `MODEL_MAP_*` o en los encabezados de la solicitud), el proxy ignora la selección de la CLI y dirige la solicitud directamente al modelo de backend deseado.
+1. **Descubrimiento Dinámico de Modelos**: El proxy consulta automáticamente los proveedores activos configurados en su `.env` (Nvidia NIM, OpenRouter, etc.), almacena en caché sus catálogos de modelos con un mecanismo basado en TTL y los unifica en el menú de selección `agy -model` (ofreciendo dinámicamente más de 140 opciones).
+2. **Resolución de ID Plana (Flat ID)**: Los IDs planos generados para el menú de la CLI (por ejemplo, `nvidia-deepseek-ai-deepseek-v4-pro`) se asignan de forma transparente a los IDs de proveedor originales (por ejemplo, `nvidia/deepseek-ai/deepseek-v4-pro`) al iniciar las conversaciones.
+3. **Anulaciones Manuales**: Aún puede enrutar a backends específicos dinámicamente configurando las variables `MODEL_MAP_*` en su `.env` o pasando claves con el formato `SU_CLAVE:PROVEEDOR/MODELO`.
+
+## 📊 Uso de Tokens y Seguimiento de Cuotas
+
+*   **Seguimiento del Consumo Real**: El interceptor del proxy extrae las métricas oficiales de tokens (`prompt_tokens` y `completion_tokens`) devueltas en los fragmentos (chunks) de respuesta del flujo (stream).
+*   **Estadísticas Persistidas**: Los datos de uso se almacenan localmente en `data/usage_stats.json`.
+*   **Deducciones Reales de Cuotas**: El endpoint `/v1internal:retrieveUserQuotaSummary` lee dinámicamente su consumo acumulado y reporta la cuota restante de manera fluida en el encabezado de la CLI `agy`.
 
 ## ⚡ Características
 
