@@ -178,6 +178,14 @@ async def resolve_active_provider(request: Request, default_model: str) -> tuple
 
     target_model = model_override or default_model
     
+    # Se o modelo solicitado for um modelo nativo do cliente agy, limpamos para usar o padrao do provedor
+    if target_model in (
+        "gemini-3.5-flash-low", "gemini-3.5-flash-medium", "gemini-3.5-flash-high",
+        "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.5-flash", "gemini-2.5-pro",
+        "gemini-pro", "gemini-flash"
+    ):
+        target_model = ""
+
     # Atualizar cache do provedor se for modelo dinamico nao encontrado
     if target_model:
         matched_provider = None
