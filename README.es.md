@@ -9,6 +9,12 @@ Un proxy unificado de alto rendimiento diseñado para conectar **Antigravity CLI
 
 ---
 
+
+## 🧠 Cómo Funciona el Enrutamiento de Modelos
+
+1. **Selección Visual (`agy -model`)**: El menú interactivo de la CLI muestra los modelos mapeados en `data/real_models_response.json`. Puede seleccionar cualquier opción allí para satisfacer el saludo del protocolo de la CLI.
+2. **Enrutamiento Dinámico Real**: El proxy intercepta la solicitud de la CLI y verifica su clave API. Al formatear su clave como `SUA_CHAVE:PROVEEDOR/MODELO` (ya sea en el archivo `.env` o en los encabezados de la solicitud), el proxy ignora la selección de la CLI y dirige la solicitud directamente al modelo de backend deseado.
+
 ## ⚡ Características
 
 *   **Arquitectura de Proxy Unificada:** Atiende tanto las solicitudes de Antigravity CLI `/v1internal` como las de Claude Code `/v1/messages` en un único puerto local (`8084`).

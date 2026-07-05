@@ -9,6 +9,12 @@ A high-performance unified proxy designed to connect **Antigravity CLI (agy)** a
 
 ---
 
+
+## 🧠 How Model Routing Works
+
+1. **Visual Selection (`agy -model`)**: The interactive CLI menu displays the models mapped in `data/real_models_response.json`. You can select any option there to satisfy the CLI protocol handshake.
+2. **Actual Dynamic Routing**: The proxy intercepts the CLI request and checks your API key. By formatting your key as `YOUR_KEY:PROVIDER/MODEL` (either in your `.env` file or in the request headers), the proxy bypasses the CLI selection and routes the prompt directly to your desired backend model.
+
 ## ⚡ Features
 
 *   **Unified Proxy Architecture:** Serves both Antigravity CLI `/v1internal` requests and Claude Code `/v1/messages` on a single local port (`8084`).

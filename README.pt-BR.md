@@ -9,6 +9,12 @@ Um proxy unificado de alta performance projetado para conectar o **Antigravity C
 
 ---
 
+
+## 🧠 Como Funciona o Roteamento de Modelos
+
+1. **Seleção Visual (`agy -model`)**: O menu interativo da CLI exibe os modelos mapeados em `data/real_models_response.json`. Você pode selecionar qualquer opção lá para satisfazer o handshake do protocolo da CLI.
+2. **Roteamento Dinâmico Real**: O proxy intercepta a requisição da CLI e verifica a sua chave de API. Ao formatar sua chave como `SUA_CHAVE:PROVEDOR/MODELO` (seja no arquivo `.env` ou nos cabeçalhos da requisição), o proxy ignora a seleção da CLI e direciona o prompt diretamente para o modelo de backend desejado.
+
 ## ⚡ Recursos
 
 *   **Arquitetura de Proxy Unificada:** Atende tanto a requisições do Antigravity CLI `/v1internal` quanto do Claude Code `/v1/messages` em uma única porta local (`8084`).

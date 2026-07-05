@@ -9,6 +9,12 @@
 
 ---
 
+
+## 🧠 模型路由工作原理
+
+1. **视觉选择 (`agy -model`)**: 交互式 CLI 菜单显示在 `data/real_models_response.json` 中映射的模型。您可以在此处选择任何选项以满足 CLI 协议握手。
+2. **实际动态路由**: 代理拦截 CLI 请求并检查您的 API 密钥。通过将您的密钥格式化为 `YOUR_KEY:PROVIDER/MODEL`（在 `.env` 文件或请求头中），代理会绕过 CLI 选择，直接将提示路由到您所需的后端模型。
+
 ## ⚡ 特性
 
 *   **统一代理架构:** 在单个本地端口 (`8084`) 上同时服务 Antigravity CLI `/v1internal` 请求和 Claude Code `/v1/messages` 请求。
