@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-07-05
+### Added
+- Implemented automated fake Google credentials simulation (`oauth_creds.json` and `google_accounts.json`) in Python lifespan hooks, bypassing onboarding and "account provisioning" errors in `agy`.
+- Built robust automatic file backup and restoration mechanism to clean up simulated credentials when the proxy shuts down or is stopped.
+
 ## [1.0.0] - 2026-07-05
 ### Added
 - Created `pyproject.toml` to manage project packaging, metadata, and official versioning.

@@ -2,6 +2,9 @@ import os
 import json
 import asyncio
 import httpx
+import base64
+import time
+import shutil
 from typing import AsyncGenerator
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
@@ -70,9 +73,144 @@ def load_fcc_modules():
 
 load_fcc_modules()
 
+# Caminhos para arquivos de credenciais do Antigravity
+OAUTH_CREDS_PATH = "/data/data/com.termux/files/home/.gemini/oauth_creds.json"
+ACCOUNTS_PATH = "/data/data/com.termux/files/home/.gemini/google_accounts.json"
+DATA_DIR = "/data/data/com.termux/files/home/free-antigravity/data"
+BACKUP_OAUTH_CREDS_PATH = os.path.join(DATA_DIR, "oauth_creds.json.bak")
+BACKUP_ACCOUNTS_PATH = os.path.join(DATA_DIR, "google_accounts.json.bak")
+
+def setup_mock_credentials():
+    logger.info("Configurando credenciais mockadas para o Antigravity...")
+    os.makedirs(DATA_DIR, exist_ok=True)
+    
+    # Se ja houver backups de execucao anterior (que caiu por exemplo), restauramos antes de prosseguir
+    if os.path.exists(BACKUP_ACCOUNTS_PATH) or os.path.exists(BACKUP_OAUTH_CREDS_PATH):
+        logger.info("Encontrado backups de sessao anterior. Restaurando primeiro para iniciar limpo...")
+        restore_original_credentials()
+
+    # 1. Gerenciar google_accounts.json
+    if os.path.exists(ACCOUNTS_PATH):
+        try:
+            with open(ACCOUNTS_PATH, "r") as f:
+                acc_data = json.load(f)
+            # Fazer backup do original
+            with open(BACKUP_ACCOUNTS_PATH, "w") as f:
+                json.dump(acc_data, f, indent=2)
+        except Exception as e:
+            logger.warning(f"Erro ao ler/backup google_accounts.json: {e}")
+            acc_data = {}
+    else:
+        acc_data = {}
+        
+    acc_data["active"] = "euodeioodiabo@gmail.com"
+    if "old" not in acc_data:
+        acc_data["old"] = []
+    if "euodeioodiabo@gmail.com" not in acc_data["old"]:
+        acc_data["old"].append("euodeioodiabo@gmail.com")
+        
+    try:
+        os.makedirs(os.path.dirname(ACCOUNTS_PATH), exist_ok=True)
+        with open(ACCOUNTS_PATH, "w") as f:
+            json.dump(acc_data, f, indent=2)
+        logger.info("google_accounts.json mockado com sucesso.")
+    except Exception as e:
+        logger.error(f"Erro ao salvar google_accounts.json mockado: {e}")
+
+    # 2. Gerenciar oauth_creds.json
+    creds_exist = os.path.exists(OAUTH_CREDS_PATH)
+    creds_data = None
+    if creds_exist:
+        try:
+            with open(OAUTH_CREDS_PATH, "r") as f:
+                creds_data = json.load(f)
+            # Fazer backup
+            with open(BACKUP_OAUTH_CREDS_PATH, "w") as f:
+                json.dump(creds_data, f, indent=2)
+        except Exception as e:
+            logger.warning(f"Erro ao ler/backup oauth_creds.json: {e}")
+            
+    # Gerar data no futuro distante: 10 anos a partir de agora
+    future_time_sec = int(time.time()) + 315360000  # 10 anos em segundos
+    future_time_ms = future_time_sec * 1000
+    
+    # Criar payload JWT fake
+    jwt_header = "eyJhbGciOiJSUzI1NiIsImtpZCI6ImQxMjk3OGJhNGMyOWVmMTE1NGEzNGU0ODcwYzdhM2E1MWQyNmRmMTAiLCJ0eXAiOiJKV1QifQ"
+    jwt_payload_data = {
+        "iss": "https://accounts.google.com",
+        "azp": "681255809395-oo8ft2oprdrnp9e3aqf6av3hmdib135j.apps.googleusercontent.com",
+        "aud": "681255809395-oo8ft2oprdrnp9e3aqf6av3hmdib135j.apps.googleusercontent.com",
+        "sub": "115126167026707501557",
+        "email": "euodeioodiabo@gmail.com",
+        "email_verified": True,
+        "at_hash": "LVX1aKT1hxLIDvtDD00svg",
+        "name": "Pacoca",
+        "picture": "https://lh3.googleusercontent.com/a/ACg8ocKfYvQJBLdPrhkuR-dvy4Tb_VoGgHqUSfmXYGqpePTb3ZH6TBk=s96-c",
+        "given_name": "Pacoca",
+        "iat": int(time.time()) - 3600,
+        "exp": future_time_sec
+    }
+    
+    # Codificar payload em base64url sem padding
+    payload_bytes = json.dumps(jwt_payload_data).encode("utf-8")
+    payload_b64 = base64.urlsafe_b64encode(payload_bytes).decode("utf-8").rstrip("=")
+    fake_jwt = f"{jwt_header}.{payload_b64}.mock_signature"
+    
+    # Montar credenciais
+    if not creds_data:
+        creds_data = {
+            "access_token": "ya29.mock_access_token_value_here",
+            "refresh_token": "1//mock_refresh_token_value_here",
+            "scope": "https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid",
+            "token_type": "Bearer",
+        }
+    
+    creds_data["expiry_date"] = future_time_ms
+    creds_data["id_token"] = fake_jwt
+    if "access_token" not in creds_data or not creds_data["access_token"]:
+        creds_data["access_token"] = "ya29.mock_access_token_value_here"
+        
+    try:
+        os.makedirs(os.path.dirname(OAUTH_CREDS_PATH), exist_ok=True)
+        with open(OAUTH_CREDS_PATH, "w") as f:
+            json.dump(creds_data, f, indent=2)
+        logger.info("oauth_creds.json mockado com expiracao no futuro com sucesso.")
+    except Exception as e:
+        logger.error(f"Erro ao salvar oauth_creds.json mockado: {e}")
+
+def restore_original_credentials():
+    logger.info("Restaurando credenciais originais do Antigravity...")
+    # Restaurar google_accounts.json
+    if os.path.exists(BACKUP_ACCOUNTS_PATH):
+        try:
+            shutil.copy2(BACKUP_ACCOUNTS_PATH, ACCOUNTS_PATH)
+            os.remove(BACKUP_ACCOUNTS_PATH)
+            logger.info("google_accounts.json original restaurado.")
+        except Exception as e:
+            logger.error(f"Erro ao restaurar google_accounts.json: {e}")
+            
+    # Restaurar oauth_creds.json
+    if os.path.exists(BACKUP_OAUTH_CREDS_PATH):
+        try:
+            shutil.copy2(BACKUP_OAUTH_CREDS_PATH, OAUTH_CREDS_PATH)
+            os.remove(BACKUP_OAUTH_CREDS_PATH)
+            logger.info("oauth_creds.json original restaurado.")
+        except Exception as e:
+            logger.error(f"Erro ao restaurar oauth_creds.json: {e}")
+    else:
+        # Se nao existia o original, deleta o fake
+        if os.path.exists(OAUTH_CREDS_PATH):
+            try:
+                os.remove(OAUTH_CREDS_PATH)
+                logger.info("oauth_creds.json temporario removido.")
+            except Exception as e:
+                logger.error(f"Erro ao remover oauth_creds.json temporario: {e}")
+
 @asynccontextmanager
 async def app_lifespan(app: FastAPI):
-    """Lifespan que inicializa o AppRuntime do free-claude-code se disponivel."""
+    """Lifespan que inicializa o AppRuntime do free-claude-code se disponivel e configura conta fake."""
+    setup_mock_credentials()
+    
     runtime = None
     if AppRuntime and get_settings:
         try:
@@ -91,6 +229,8 @@ async def app_lifespan(app: FastAPI):
             logger.info("AppRuntime do Free Claude Code finalizado com sucesso no lifespan.")
         except Exception as e:
             logger.error(f"Erro ao finalizar AppRuntime no lifespan: {e}")
+            
+    restore_original_credentials()
 
 app = FastAPI(title="Free Antigravity API Server", lifespan=app_lifespan)
 

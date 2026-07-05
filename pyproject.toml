@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "free-antigravity"
-version = "1.0.0"
+version = "1.1.0"
 description = "High-performance unified proxy designed to connect Antigravity CLI (agy) and Claude Code to any AI provider"
 readme = "README.md"
 requires-python = ">=3.10"
