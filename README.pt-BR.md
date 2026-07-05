@@ -3,6 +3,8 @@
 🌎 **Escolha seu idioma:**
 [English](README.md) | [Português](README.pt-BR.md) | [Español](README.es.md) | [Русский](README.ru.md) | [中文](README.zh.md)
 
+📚 **Guia Técnico**: Para detalhes profundos de integração, emulação de credenciais do Google, mapeamentos de protocolos e configurações personalizadas do CLI, leia o [Guia Técnico Unificado](docs/TECHNICAL_GUIDE.md) (em inglês).
+
 ---
 
 Um proxy unificado de alta performance projetado para conectar o **Antigravity CLI (agy)** e o **Claude Code** a qualquer provedor de IA (Nvidia NIM, OpenRouter, DeepSeek, Mistral, Groq, Ollama) com resolução dinâmica de chaves e um dashboard interativo com física de gravidade zero.

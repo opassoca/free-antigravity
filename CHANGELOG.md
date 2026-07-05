@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-07-05
+### Added
+- Created `docs/TECHNICAL_GUIDE.md`, consolidating all architectural blueprints, reverse-engineered protocol mappings, mock credential JSON structures, CLI footer custom configs, and cache implementations in a unified documentation file.
+- Linked the technical guide from the main English and Portuguese READMEs.
+
 ## [1.1.0] - 2026-07-05
 ### Added
 - Implemented automated fake Google credentials simulation (`oauth_creds.json` and `google_accounts.json`) in Python lifespan hooks, bypassing onboarding and "account provisioning" errors in `agy`.
