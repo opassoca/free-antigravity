@@ -56,5 +56,26 @@ pip install -r requirements.txt
 ./install.sh
 ```
 
+
+## ⌨️ Алиасы автопрокси (Необязательно)
+
+Чтобы запускать оригинальные команды из любого каталога без ручного запуска прокси, добавьте эти функции в ваш `~/.bashrc` или `~/.zshrc`:
+
+```bash
+# Автозапуск прокси для Claude Code
+claude() {
+    if ! curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:8084/v1internal/" 2>/dev/null | grep -q "200"; then
+        python ~/free-antigravity/free-antigravity.py >/dev/null 2>&1 &
+        sleep 1
+    fi
+    CLAUDE_CODE_URL="http://127.0.0.1:8084" command claude "$@"
+}
+
+# Алиас для Gemini CLI с использованием обертки
+alias agy="~/bin/free-antigravity"
+```
+
+Выполните `source ~/.bashrc` для применения изменений.
+
 ## 👨‍💻 Авторы
 Разработано с 💙 [Paçoca (@opassoca)](https://github.com/opassoca).

@@ -56,5 +56,26 @@ pip install -r requirements.txt
 ./install.sh
 ```
 
+
+## ⌨️ 自动代理别名 (可选)
+
+要在任何目录下直接运行原始命令而无需手动启动代理，请将这些函数追加到您的 `~/.bashrc` 或 `~/.zshrc` 中：
+
+```bash
+# Claude Code 自动启动代理
+claude() {
+    if ! curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:8084/v1internal/" 2>/dev/null | grep -q "200"; then
+        python ~/free-antigravity/free-antigravity.py >/dev/null 2>&1 &
+        sleep 1
+    fi
+    CLAUDE_CODE_URL="http://127.0.0.1:8084" command claude "$@"
+}
+
+# 使用封装器的 Gemini CLI 别名
+alias agy="~/bin/free-antigravity"
+```
+
+运行 `source ~/.bashrc` 以应用更改。
+
 ## 👨‍💻 贡献者
 由 [Paçoca (@opassoca)](https://github.com/opassoca) 用 💙 开发。

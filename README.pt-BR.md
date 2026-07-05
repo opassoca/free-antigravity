@@ -56,5 +56,26 @@ pip install -r requirements.txt
 ./install.sh
 ```
 
+
+## ⌨️ Aliases de Auto-Proxy (Opcional)
+
+Para executar seus comandos originais diretamente de qualquer diretório sem iniciar o proxy manualmente, adicione estas funções ao seu `~/.bashrc` ou `~/.zshrc`:
+
+```bash
+# Início automático do proxy para o Claude Code
+claude() {
+    if ! curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:8084/v1internal/" 2>/dev/null | grep -q "200"; then
+        python ~/free-antigravity/free-antigravity.py >/dev/null 2>&1 &
+        sleep 1
+    fi
+    CLAUDE_CODE_URL="http://127.0.0.1:8084" command claude "$@"
+}
+
+# Alias para a Gemini CLI usando o wrapper
+alias agy="~/bin/free-antigravity"
+```
+
+Execute `source ~/.bashrc` para aplicar as alterações.
+
 ## 👨‍💻 Créditos
 Desenvolvido com 💙 por [Paçoca (@opassoca)](https://github.com/opassoca).
