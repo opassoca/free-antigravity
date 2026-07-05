@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-07-05
+### Added
+- Modularized provider system under `providers/` sub-packages, implementing the provider registry and decorator auto-discovery patterns (inspired by `free-claude-code`).
+- Created dedicated providers for NVIDIA NIM, OpenRouter, DeepSeek, Mistral, Groq, Google Gemini (via API key), and Ollama.
+- Introduced `HealthMonitor` for background health checks and offline provider recovery.
+- Re-architected `TokenTracker` to support real-time token tracking and quota limit fraction calculations per model and provider.
+- Added `/v1internal/quota` and `/v1internal:quotaSummary` endpoints to expose real-time quota status.
+- Implemented `stream_response` inside each provider, encapsulating network streaming, error parsing, and rate-limit semaphore tracking inside the provider classes themselves.
+- Unified the logging system to use `loguru` consistently across the entire project.
+- Updated `install.sh` to configure the correct latest robust wrapper executable.
+
 ## [1.2.0] - 2026-07-05
 ### Added
 - Created `docs/TECHNICAL_GUIDE.md`, consolidating all architectural blueprints, reverse-engineered protocol mappings, mock credential JSON structures, CLI footer custom configs, and cache implementations in a unified documentation file.
