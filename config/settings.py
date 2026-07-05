@@ -26,21 +26,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger("FreeAntigravity")
 
-# Tentar importar os roteadores e runtime do free-claude-code para unificar os proxies
-fcc_router = None
-fcc_admin_router = None
-AppRuntime = None
-get_settings = None
-
-try:
-    from api.routes import router as fcc_router
-    from api.admin_routes import router as fcc_admin_router
-    from api.runtime import AppRuntime
-    from config.settings import get_settings
-    logger.info("Modulos do Free Claude Code importados com sucesso para unificacao!")
-except Exception as e:
-    logger.warning(f"Nao foi possivel importar modulos do Free Claude Code: {e}")
-
 # Chaves API e URLs padrao obtidas do .env
 NVIDIA_NIM_API_KEY = os.environ.get("NVIDIA_NIM_API_KEY", "")
 NIM_MODEL = os.environ.get("NIM_MODEL", "deepseek-ai/deepseek-r1")

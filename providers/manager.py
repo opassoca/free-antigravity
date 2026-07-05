@@ -11,8 +11,7 @@ from config.settings import (
     NVIDIA_NIM_API_KEY,
     NIM_MODEL,
     NIM_BASE_URL,
-    CACHE_TTL,
-    get_settings
+    CACHE_TTL
 )
 
 # Cache global para modelos dinamicos mapeados por provedor
@@ -33,9 +32,15 @@ async def fetch_provider_models(provider_name: str) -> dict:
     api_key = os.environ.get(cfg["env_key"]) or (NVIDIA_NIM_API_KEY if provider_name == "nvidia" else "")
     
     # Tentar ler do free-claude-code env importado se nao estiver local
-    if not api_key and get_settings:
+    get_settings_fn = None
+    try:
+        from api.routes import get_settings as get_settings_fn
+    except ImportError:
+        pass
+        
+    if not api_key and get_settings_fn:
         try:
-            settings = get_settings()
+            settings = get_settings_fn()
             api_key = getattr(settings, cfg["env_key"].lower(), "")
         except Exception:
             pass

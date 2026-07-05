@@ -9,10 +9,6 @@ from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse
 
 from config.settings import (
     logger,
-    fcc_router,
-    fcc_admin_router,
-    AppRuntime,
-    get_settings,
     PROVIDER_CONFIGS,
     NIM_MODEL
 )
@@ -23,6 +19,56 @@ from providers.manager import (
     convert_gemini_to_openai,
     REVERSE_MODEL_MAP
 )
+
+# Tentar importar de forma lazy os roteadores e runtime do free-claude-code
+fcc_router = None
+fcc_admin_router = None
+AppRuntime = None
+get_settings = None
+
+def load_fcc_modules():
+    global fcc_router, fcc_admin_router, AppRuntime, get_settings
+    FCC_PATH = "/data/data/com.termux/files/home/free-claude-code"
+    if not os.path.exists(FCC_PATH):
+        return
+        
+    import sys
+    orig_sys_path = sys.path.copy()
+    
+    # Capturar todos os modulos locais carregados que colidem com os do FCC
+    fcc_keys = ["api", "config", "providers"]
+    fcc_modules = {}
+    for k, v in list(sys.modules.items()):
+        if any(k == key or k.startswith(key + ".") for key in fcc_keys):
+            fcc_modules[k] = v
+            sys.modules.pop(k, None)
+            
+    try:
+        # Remover caminhos locais do sys.path
+        local_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        while local_dir in sys.path:
+            sys.path.remove(local_dir)
+        for p in ["", ".", "./"]:
+            while p in sys.path:
+                sys.path.remove(p)
+                
+        if FCC_PATH not in sys.path:
+            sys.path.append(FCC_PATH)
+            
+        from api.routes import router as fcc_router
+        from api.admin_routes import router as fcc_admin_router
+        from api.runtime import AppRuntime
+        from config.settings import get_settings
+        logger.info("Modulos do Free Claude Code importados com sucesso para unificacao!")
+    except Exception as e:
+        logger.warning(f"Nao foi possivel importar modulos do Free Claude Code: {e}")
+    finally:
+        # Restaurar sys.path e sys.modules locais
+        sys.path = orig_sys_path
+        for k, v in fcc_modules.items():
+            sys.modules[k] = v
+
+load_fcc_modules()
 
 @asynccontextmanager
 async def app_lifespan(app: FastAPI):
