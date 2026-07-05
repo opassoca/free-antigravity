@@ -20,7 +20,8 @@
 
 *   **实际消耗跟踪**: 代理拦截器提取流式响应分块 (stream response chunks) 中返回的官方 Token 指标 (`prompt_tokens` 和 `completion_tokens`)。
 *   **持久化统计**: 使用数据本地存储在 `data/usage_stats.json` 中。
-*   **真实配额扣除**: `/v1internal:retrieveUserQuotaSummary` 接口会动态读取您的累计消耗，并在 `agy` CLI 标题中无缝报告剩余配额。
+*   **真实配额扣除**: `/v1internal:retrieveUserQuotaSummary` 接口會动态读取您的累计消耗，并在 `agy` CLI 标题中无缝报告剩余配额。
+*   **实时配额 API**：查询 `/v1internal/quota` 端点以实时检查所有活动提供商和模型的当前实时额度比例、剩余 Token 以及消耗摘要。
 
 ## ⚡ 特性
 

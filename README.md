@@ -23,6 +23,7 @@ A high-performance unified proxy designed to connect **Antigravity CLI (agy)** a
 *   **Real Consumption tracking**: The proxy interceptor extracts official token metrics (`prompt_tokens` and `completion_tokens`) returned in stream response chunks.
 *   **Persisted Stats**: Usage data is stored locally in `data/usage_stats.json`.
 *   **True Quota Deductions**: The `/v1internal:retrieveUserQuotaSummary` endpoint dynamically reads your accumulated consumption and reports remaining quota seamlessly in the `agy` CLI header.
+*   **Real-time Quota API**: Query the `/v1internal/quota` endpoint to inspect the current real-time quota fraction, remaining tokens, and consumption summary across all active providers and models.
 
 ## ⚡ Features
 

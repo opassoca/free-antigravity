@@ -23,6 +23,7 @@ Um proxy unificado de alta performance projetado para conectar o **Antigravity C
 *   **Rastreamento de Consumo Real**: O interceptador do proxy extrai métricas de tokens oficiais (`prompt_tokens` e `completion_tokens`) retornadas em pedaços (chunks) de resposta de fluxo (stream).
 *   **Estatísticas Persistidas**: Os dados de uso são armazenados localmente em `data/usage_stats.json`.
 *   **Dedução Real de Cota**: O endpoint `/v1internal:retrieveUserQuotaSummary` lê dinamicamente seu consumo acumulado e reporta a cota restante perfeitamente no cabeçalho da CLI `agy`.
+*   **API de Cotas em tempo real**: Consulte o endpoint `/v1internal/quota` para inspecionar a fração de cota atual em tempo real, tokens restantes e resumo de consumo em todos os provedores e modelos ativos.
 
 ## ⚡ Recursos
 
