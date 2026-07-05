@@ -83,6 +83,82 @@ NVIDIA_NIM_API_KEY = os.environ.get("NVIDIA_NIM_API_KEY", "")
 NIM_MODEL = os.environ.get("NIM_MODEL", "deepseek-ai/deepseek-r1")
 NIM_BASE_URL = "https://integrate.api.nvidia.com/v1"
 
+# Cache global para modelos dinamicos obtidos de APIs de provedores
+DYNAMIC_MODELS_CACHE = {}
+# Mapeamento reverso global de IDs achatados para os IDs originais com provedores
+REVERSE_MODEL_MAP = {}
+
+async def fetch_nvidia_nim_models() -> dict:
+    global DYNAMIC_MODELS_CACHE, REVERSE_MODEL_MAP
+    if DYNAMIC_MODELS_CACHE:
+        return DYNAMIC_MODELS_CACHE
+
+    api_key = os.environ.get("NVIDIA_NIM_API_KEY") or NVIDIA_NIM_API_KEY
+    if not api_key:
+        logger.warning("NVIDIA_NIM_API_KEY nao encontrada ao buscar modelos dinamicos.")
+        return {}
+
+    url = f"{NIM_BASE_URL}/models"
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    try:
+        logger.info(f"Buscando catalogo completo de modelos da NVIDIA NIM de {url}...")
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(url, headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
+                models_list = data.get("data", [])
+                dynamic_dict = {}
+                counter = 200
+                for m in models_list:
+                    orig_id = m.get("id")
+                    if not orig_id:
+                        continue
+                    # Gerar um ID achatado e limpo (ex: "nvidia/google/gemma-4-31b-it" -> "nvidia-google-gemma-4-31b-it")
+                    # Para compatibilidade com a CLI (que nao aceita barras nos IDs de modelo)
+                    flat_id = orig_id.replace("/", "-").replace("_", "-").replace(".", "-").lower()
+                    if not flat_id.startswith("nvidia-"):
+                        flat_id = f"nvidia-{flat_id}"
+                    
+                    # Mapeamento reverso para roteamento posterior
+                    REVERSE_MODEL_MAP[flat_id] = f"nvidia/{orig_id}"
+                    
+                    # Formatar nome amigavel
+                    provider_part = orig_id.split("/")[0].upper() if "/" in orig_id else "NVIDIA"
+                    model_name = orig_id.split("/")[-1].replace("-", " ").replace("_", " ").title()
+                    display_name = f"{model_name} (via {provider_part})"
+                    
+                    # Determinar suporte a pensamento/imagens a partir do ID
+                    supports_thinking = "reason" in orig_id.lower() or "deepseek-r1" in orig_id.lower()
+                    supports_images = "vision" in orig_id.lower() or "vl" in orig_id.lower() or "multimodal" in orig_id.lower()
+                    
+                    dynamic_dict[flat_id] = {
+                        "displayName": display_name,
+                        "supportsImages": supports_images,
+                        "supportsThinking": supports_thinking,
+                        "recommended": False,
+                        "maxTokens": 16384,
+                        "maxOutputTokens": 4096,
+                        "tokenizerType": "LLAMA_WITH_SPECIAL",
+                        "quotaInfo": {
+                            "remainingFraction": 1,
+                            "resetTime": "2026-07-11T23:03:30Z"
+                        },
+                        "model": f"MODEL_PLACEHOLDER_D{counter}",
+                        "apiProvider": "API_PROVIDER_GOOGLE_GEMINI",
+                        "modelProvider": "MODEL_PROVIDER_GOOGLE"
+                    }
+                    counter += 1
+                
+                DYNAMIC_MODELS_CACHE = dynamic_dict
+                logger.info(f"Carregados {len(dynamic_dict)} modelos dinamicos da NVIDIA NIM com sucesso!")
+                return DYNAMIC_MODELS_CACHE
+            else:
+                logger.error(f"Erro ao buscar modelos da NVIDIA NIM: {resp.status_code} {resp.text}")
+    except Exception as e:
+        logger.error(f"Excecao ao buscar modelos da NVIDIA NIM: {e}")
+    return {}
+
 if not NVIDIA_NIM_API_KEY:
     logger.warning("NVIDIA_NIM_API_KEY nao configurada no .env!")
 
@@ -167,25 +243,36 @@ async def fetch_models(request: Request):
     await log_request_details(request, "fetchAvailableModels")
     base_dir = os.path.dirname(os.path.abspath(__file__))
     json_path = os.path.join(base_dir, "data", "real_models_response.json")
+    
+    # 1. Carregar modelos estaticos originais
+    data = {"models": {}}
     if os.path.exists(json_path):
         with open(json_path, "r") as f:
             data = json.load(f)
-        # Patch dinâmico: renomear displayName dos modelos baseado em MODEL_MAP_* do .env
-        models = data.get("models", {})
-        for model_id, model_info in models.items():
-            env_key = f"MODEL_MAP_{model_id.upper().replace('-', '_').replace('.', '_')}"
-            mapped_target = os.environ.get(env_key)
-            if mapped_target and "displayName" in model_info:
-                # Extrair nome legivel do modelo mapeado (ex: "nvidia/deepseek-ai/deepseek-v4-pro" -> "DeepSeek V4 Pro")
-                raw_name = mapped_target.split("/")[-1]  # pega o ultimo segmento
-                friendly_name = raw_name.replace("-", " ").replace("_", " ").title()
-                original_name = model_info["displayName"]
-                model_info["displayName"] = f"{friendly_name} (via {mapped_target.split('/')[0].upper()})"
-                logger.info(f"Patch displayName: '{original_name}' -> '{model_info['displayName']}' (ENV: {env_key})")
-        return JSONResponse(content=data)
-    else:
-        logger.error(f"Arquivo real_models_response.json nao encontrado em {json_path}!")
-        return JSONResponse(content={"models": {}})
+            
+    # 2. Buscar catalogo dinâmico completo da NVIDIA NIM
+    nim_models = await fetch_nvidia_nim_models()
+    if nim_models:
+        # Mesclar modelos dinamicos no inicio para maior visibilidade
+        merged_models = {}
+        merged_models.update(nim_models)
+        merged_models.update(data.get("models", {}))
+        data["models"] = merged_models
+        
+    # 3. Patch dinâmico: renomear displayName dos modelos baseado em MODEL_MAP_* do .env
+    models = data.get("models", {})
+    for model_id, model_info in models.items():
+        env_key = f"MODEL_MAP_{model_id.upper().replace('-', '_').replace('.', '_')}"
+        mapped_target = os.environ.get(env_key)
+        if mapped_target and "displayName" in model_info:
+            # Extrair nome legivel do modelo mapeado (ex: "nvidia/deepseek-ai/deepseek-v4-pro" -> "DeepSeek V4 Pro")
+            raw_name = mapped_target.split("/")[-1]  # pega o ultimo segmento
+            friendly_name = raw_name.replace("-", " ").replace("_", " ").title()
+            original_name = model_info["displayName"]
+            model_info["displayName"] = f"{friendly_name} (via {mapped_target.split('/')[0].upper()})"
+            logger.info(f"Patch displayName: '{original_name}' -> '{model_info['displayName']}' (ENV: {env_key})")
+            
+    return JSONResponse(content=data)
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_home(request: Request):
@@ -200,7 +287,7 @@ async def serve_home(request: Request):
 async def root_probe(request: Request):
     return JSONResponse(content={"status": "ok"})
 
-def resolve_active_provider(request: Request, default_model: str) -> tuple[str, str, str]:
+async def resolve_active_provider(request: Request, default_model: str) -> tuple[str, str, str]:
     """Resolve dinamicamente a base_url, api_key e model com base nas envs e headers."""
     # Traduzir o modelo solicitado baseado em mapeamento das variaveis de ambiente (MODEL_MAP_...)
     if default_model:
@@ -234,6 +321,17 @@ def resolve_active_provider(request: Request, default_model: str) -> tuple[str, 
     # Determinar qual o modelo a ser usado (do payload da request, override de cabecalho ou default_model)
     target_model = model_override or default_model
     
+    # Se o modelo solicitado comecar com o prefixo do provedor e nao estiver mapeado, tentar forcar a atualizacao do catalogo
+    if target_model and target_model.startswith("nvidia-") and target_model not in REVERSE_MODEL_MAP:
+        logger.info(f"Modelo dinamico '{target_model}' nao encontrado no cache. Atualizando catalogo de modelos...")
+        await fetch_nvidia_nim_models()
+
+    # Se o modelo solicitado estiver no mapeamento reverso dinamico, traduzi-lo de volta
+    if target_model in REVERSE_MODEL_MAP:
+        original_mapped = REVERSE_MODEL_MAP[target_model]
+        logger.info(f"Resolvendo modelo dinamico: {target_model} -> {original_mapped}")
+        target_model = original_mapped
+        
     # Mapeamento de fallbacks nativos para os 8 modelos customizados caso selecionados sem provider
     NATIVE_FALLBACKS = {
         "deepseek-v4-pro": "nvidia/deepseek-ai/deepseek-v4-pro",
@@ -417,7 +515,7 @@ async def stream_generate_content(request: Request):
     logger.info(f"Recebeu requisicao de chat/stream para o modelo: {req_model}")
     
     # Resolver dinamicamente a URL base, a chave e o nome do modelo correto
-    base_url, api_key, target_model = resolve_active_provider(request, req_model)
+    base_url, api_key, target_model = await resolve_active_provider(request, req_model)
     
     # Converter para formato NIM/OpenAI
     nim_payload = convert_gemini_to_openai(gemini_req, target_model)
