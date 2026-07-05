@@ -190,6 +190,14 @@ async def root_probe(request: Request):
 
 def resolve_active_provider(request: Request, default_model: str) -> tuple[str, str, str]:
     """Resolve dinamicamente a base_url, api_key e model com base nas envs e headers."""
+    # Traduzir o modelo solicitado baseado em mapeamento das variaveis de ambiente (MODEL_MAP_...)
+    if default_model:
+        env_key = f"MODEL_MAP_{default_model.upper().replace('-', '_').replace('.', '_')}"
+        mapped_model = os.environ.get(env_key)
+        if mapped_model:
+            logger.info(f"Mapeamento de modelo via ENV ({env_key}): {default_model} -> {mapped_model}")
+            default_model = mapped_model
+
     # Ler cabecalho de autenticacao para verificar se o usuario embutiu o provedor/modelo
     # Formato suportado: x-api-key: SUA_CHAVE:PROVEDOR/MODELO
     auth_header = (
