@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-07-05
+### Fixed
+- Fixed a crash in the `agy` (Antigravity CLI) Go client caused by unwrapped SSE chunks: streamed responses are now enveloped in `{"response": {...}}` to match the internal `streamGenerateContentFromCCPA` format the client expects, eliminating a nil-pointer panic on the first streamed text chunk.
+- Replaced `response.iter_text()` with `response.aiter_text()` in `providers/base.py` for correct async streaming iteration.
+- Fixed `TokenTracker` to read the nested `models` key from persisted usage stats and skip malformed entries, preventing crashes when loading quota data.
+### Added
+- Added `/internal/agy-session-start` and `/internal/agy-session-end` endpoints for explicit mock/restore of Google credentials, decoupled from the FastAPI app lifespan.
+- Added automatic mock OAuth token responses for token/oauth refresh routes, keeping `agy` sessions alive without real Google credentials.
+- Added pre-flight/warm-up request handling in `stream_generate_content`, returning an immediate empty mock chunk when `contents` is empty.
+- Added a final `STOP` chunk with `usageMetadata` at the end of every stream to prevent client-side crashes on stream close.
+- `mitm_proxy.py` now also intercepts `oauth2.googleapis.com`.
+### Changed
+- Default NIM model changed from the deprecated `deepseek-ai/deepseek-r1` to `deepseek-ai/deepseek-v4-pro` across settings, provider aliases, `.env.example`, and model maps.
+- `install.sh` now tracks and kills proxy/MITM processes by their captured PIDs instead of `pgrep` pattern matching, and starts both with `python -u` and stdin redirected from `/dev/null` to avoid orphaned or blocking background processes.
+
 ## [1.3.0] - 2026-07-05
 ### Added
 - Modularized provider system under `providers/` sub-packages, implementing the provider registry and decorator auto-discovery patterns (inspired by `free-claude-code`).

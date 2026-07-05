@@ -77,7 +77,7 @@ if ! check_proxy; then
     export MOCK_EMAIL="${MOCK_EMAIL}"
     export MOCK_PLAN_NAME="${MOCK_PLAN_NAME}"
     export NIM_MODEL="${NIM_MODEL}"
-    python "${PROXY_SCRIPT}" >"${LOG_DIR}/free-antigravity.log" 2>&1 &
+    python -u "${PROXY_SCRIPT}" >"${LOG_DIR}/free-antigravity.log" 2>&1 < /dev/null &
     PROXY_PID=$!
     STARTED_PROXY=1
     for i in {1..10}; do
@@ -94,7 +94,7 @@ fi
 # 3. Iniciar proxy MITM (intercepta chamadas HTTPS ao googleapis.com)
 if ! check_mitm; then
     echo "Iniciando proxy MITM na porta ${MITM_PORT}..."
-    python "${MITM_SCRIPT}" >"${LOG_DIR}/mitm-proxy.log" 2>&1 &
+    python -u "${MITM_SCRIPT}" >"${LOG_DIR}/mitm-proxy.log" 2>&1 < /dev/null &
     MITM_PID=$!
     STARTED_MITM=1
     for i in {1..10}; do
@@ -127,14 +127,12 @@ glibc-runner "${AGY_BIN}" "$@"
 EXIT_CODE=$?
 
 # 6. Limpar processos se foram iniciados nesta sessao
-if [ "${STARTED_MITM}" -eq 1 ]; then
-    MITM_PIDS=$(pgrep -f "${MITM_SCRIPT}")
-    [ -n "${MITM_PIDS}" ] && kill ${MITM_PIDS} 2>/dev/null
+if [ "${STARTED_MITM}" -eq 1 ] && [ -n "${MITM_PID}" ]; then
+    kill "${MITM_PID}" 2>/dev/null
 fi
 
-if [ "${STARTED_PROXY}" -eq 1 ]; then
-    PIDS=$(pgrep -f "${PROXY_SCRIPT}")
-    [ -n "${PIDS}" ] && kill ${PIDS} 2>/dev/null
+if [ "${STARTED_PROXY}" -eq 1 ] && [ -n "${PROXY_PID}" ]; then
+    kill "${PROXY_PID}" 2>/dev/null
 fi
 exit ${EXIT_CODE}
 EOF

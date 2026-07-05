@@ -31,6 +31,7 @@ Um proxy unificado de alta performance projetado para conectar o **Antigravity C
 *   **Motor Multi-Provedores:** Integração dinâmica com Nvidia NIM, OpenRouter, DeepSeek nativo, Mistral AI, Groq e instâncias locais do Ollama.
 *   **Cabeçalhos Dinâmicos de Requisição:** Altere o modelo e o provedor dinamicamente formatando suas chaves de API como `SUA_CHAVE:PROVEDOR/MODELO`.
 *   **Página Inicial Interativa com Gravidade Zero:** Um painel premium inspirado no Google rodando **física 2D Matter.js** onde letras e cartões flutuam livremente e reagem ao ponteiro do mouse.
+*   **Streaming Sem Crashes:** Os chunks de resposta SSE são envelopados no formato de resposta interno do Google (`{"response": {...}}`) esperado pelo cliente Go do `agy`, eliminando o crash de ponteiro nulo no primeiro chunk transmitido.
 
 ---
 
@@ -57,7 +58,7 @@ Um proxy unificado de alta performance projetado para conectar o **Antigravity C
 ### Formato de Cabeçalho Dinâmico de API Key
 Formate seu token de autenticação para alternar os backends dinamicamente:
 ```text
-x-api-key: SEU_TOKEN_API:nvidia/deepseek-ai/deepseek-r1
+x-api-key: SEU_TOKEN_API:nvidia/deepseek-ai/deepseek-v4-pro
 x-api-key: SEU_TOKEN_API:openrouter/google/gemini-2.5-pro
 ```
 

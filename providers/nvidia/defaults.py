@@ -9,7 +9,7 @@ PREFIX = "nvidia-"
 ROUTE_PREFIX = "nvidia/"
 
 # Default model
-DEFAULT_MODEL = "deepseek-ai/deepseek-r1"
+DEFAULT_MODEL = "deepseek-ai/deepseek-v4-pro"
 
 # Rate limiting
 RATE_LIMIT = 60
@@ -21,7 +21,7 @@ HEALTH_CHECK_INTERVAL = 300
 
 # Model aliases: map friendly names to actual NIM model IDs
 MODEL_ALIASES = {
-    "deepseek-r1": "deepseek-ai/deepseek-r1",
+    "deepseek-r1": "deepseek-ai/deepseek-v4-pro",
     "deepseek-v4-pro": "deepseek-ai/deepseek-v4-pro",
     "deepseek-v4-flash": "deepseek-ai/deepseek-v4-flash",
     "llama-3.3-70b": "meta/llama-3.3-70b-instruct",

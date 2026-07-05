@@ -31,6 +31,7 @@ A high-performance unified proxy designed to connect **Antigravity CLI (agy)** a
 *   **Multi-Provider Engine:** Dynamic integration with Nvidia NIM, OpenRouter, native DeepSeek, Mistral AI, Groq, and local Ollama instances.
 *   **Dynamic Request Headers:** Change the model and provider on-the-fly by formatting your API keys as `YOUR_KEY:PROVIDER/MODEL`.
 *   **Interactive Zero-Gravity Landing Page:** A premium Google-inspired dashboard running **Matter.js 2D physics** where branding letters and cards float freely and react to your mouse pointer.
+*   **Crash-Free Streaming:** SSE response chunks are wrapped in the internal Google response envelope (`{"response": {...}}`) expected by the `agy` Go client, eliminating the nil-pointer crash on the first streamed chunk.
 
 ---
 
@@ -57,7 +58,7 @@ A high-performance unified proxy designed to connect **Antigravity CLI (agy)** a
 ### Dynamic API Key Header Format
 Format your authentication token to switch backends dynamically:
 ```text
-x-api-key: YOUR_API_TOKEN:nvidia/deepseek-ai/deepseek-r1
+x-api-key: YOUR_API_TOKEN:nvidia/deepseek-ai/deepseek-v4-pro
 x-api-key: YOUR_API_TOKEN:openrouter/google/gemini-2.5-pro
 ```
 

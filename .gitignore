@@ -151,3 +151,5 @@ cython_debug/
 # Local data
 data/certs/
 data/usage_stats.json
+*.bak*
+*.antes_de_reverter

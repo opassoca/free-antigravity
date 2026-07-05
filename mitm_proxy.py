@@ -27,7 +27,7 @@ FASTAPI_PORT = 8084
 MITM_PORT = 8085
 
 # Dominios que devemos interceptar e mockar
-INTERCEPTED_HOSTS = {"www.googleapis.com", "googleapis.com"}
+INTERCEPTED_HOSTS = {"www.googleapis.com", "googleapis.com", "oauth2.googleapis.com"}
 
 # Contexto SSL cacheado
 _SSL_CONTEXT = None

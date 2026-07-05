@@ -24,7 +24,7 @@ from loguru import logger
 
 # Chaves API e URLs padrao obtidas do .env
 NVIDIA_NIM_API_KEY = os.environ.get("NVIDIA_NIM_API_KEY", "")
-NIM_MODEL = os.environ.get("NIM_MODEL", "deepseek-ai/deepseek-r1")
+NIM_MODEL = os.environ.get("NIM_MODEL", "deepseek-ai/deepseek-v4-pro")
 NIM_BASE_URL = "https://integrate.api.nvidia.com/v1"
 
 # Customizacoes do Antigravity

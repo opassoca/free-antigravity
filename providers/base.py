@@ -215,7 +215,7 @@ class BaseProvider(ABC):
                         return
 
                     buffer = ""
-                    async for chunk in response.iter_text():
+                    async for chunk in response.aiter_text():
                         buffer += chunk
                         while "\n" in buffer:
                             line, buffer = buffer.split("\n", 1)

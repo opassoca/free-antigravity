@@ -29,6 +29,7 @@
 *   **多提供商引擎:** 与 Nvidia NIM, OpenRouter, 原生 DeepSeek, Mistral AI, Groq 以及本地 Ollama 实例进行动态集成。
 *   **动态请求头:** 通过将您的 API 密钥格式化为 `YOUR_KEY:PROVIDER/MODEL` 来动态切换模型和提供商。
 *   **交互式失重着陆页:** 受 Google 启发的优质控制面板，运行 **Matter.js 2D 物理引擎**，其中的品牌字母和卡片可自由漂浮并对鼠标指针做出反应。
+*   **无崩溃流式传输:** SSE 响应块被包裹在 `agy` Go 客户端所期望的 Google 内部响应封套 (`{"response": {...}}`) 中，消除了首个流式文本块导致的空指针崩溃。
 
 ---
 
@@ -55,7 +56,7 @@
 ### 动态 API 密钥请求头格式
 格式化您的身份验证令牌以动态切换后端:
 ```text
-x-api-key: YOUR_API_TOKEN:nvidia/deepseek-ai/deepseek-r1
+x-api-key: YOUR_API_TOKEN:nvidia/deepseek-ai/deepseek-v4-pro
 x-api-key: YOUR_API_TOKEN:openrouter/google/gemini-2.5-pro
 ```
 

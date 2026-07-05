@@ -55,7 +55,10 @@ class TokenTracker:
                 if not provider:
                     continue
 
-                for model_name, stats in models_data.items():
+                models_dict = models_data.get("models", {}) if isinstance(models_data, dict) else {}
+                for model_name, stats in models_dict.items():
+                    if not isinstance(stats, dict):
+                        continue
                     quota = provider.get_quota(model_name)
                     quota.input_tokens = stats.get("input_tokens", 0)
                     quota.output_tokens = stats.get("output_tokens", 0)

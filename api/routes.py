@@ -240,6 +240,21 @@ async def app_lifespan(app: FastAPI):
 
 app = FastAPI(title="Free Antigravity API Server", lifespan=app_lifespan)
 
+@app.post("/internal/agy-session-start")
+async def agy_session_start():
+    """Chamado pelo wrapper agy ao iniciar sessao do CLI: aplica conta/mock fake."""
+    setup_mock_credentials()
+    return {"status": "mocked"}
+
+
+@app.post("/internal/agy-session-end")
+async def agy_session_end():
+    """Chamado pelo wrapper agy ao encerrar sessao (normal ou trap): restaura conta real."""
+    restore_original_credentials()
+    return {"status": "restored"}
+
+
+
 # Incluir roteadores do free-claude-code se disponiveis na mesma raiz
 if fcc_router:
     app.include_router(fcc_router)
@@ -482,9 +497,34 @@ async def root_probe(request: Request):
 @app.post("/v1internal:internalAtomicAgenticChat")
 async def stream_generate_content(request: Request):
     gemini_req = await request.json()
+    if isinstance(gemini_req.get("request"), dict):
+        inner = gemini_req.pop("request")
+        for k, v in inner.items():
+            gemini_req.setdefault(k, v)
     req_model = gemini_req.get("model", NIM_MODEL)
     logger.info(f"Recebeu requisicao de chat/stream para o modelo: {req_model}")
-       # Resolver dinamicamente a instancia do provedor, a chave e o nome do modelo correto
+    logger.info(f"[stream_generate_content] FULL BODY: {json.dumps(gemini_req)}")
+
+    # Verificar se a lista de contents esta vazia (warm-up / pre-flight)
+    contents = gemini_req.get("contents") or gemini_req.get("request", {}).get("contents", [])
+    if not contents:
+        logger.info("Requisicao pre-flight/warm-up detectada (contents vazio). Retornando mock vazio imediato.")
+        async def dummy_generator():
+            dummy_chunk = {
+                "candidates": [{
+                    "content": {"role": "model", "parts": [{"text": ""}]},
+                    "finishReason": "STOP"
+                }],
+                "usageMetadata": {
+                    "promptTokenCount": 0,
+                    "candidatesTokenCount": 0,
+                    "totalTokenCount": 0
+                }
+            }
+            yield f"data: {json.dumps(dummy_chunk)}\n\n"
+        return StreamingResponse(dummy_generator(), media_type="text/event-stream")
+
+    # Resolver dinamicamente a instancia do provedor, a chave e o nome do modelo correto
     provider, api_key, target_model = await resolve_active_provider(request, req_model)
     
     # Converter para formato NIM/OpenAI
@@ -539,9 +579,15 @@ async def stream_generate_content(request: Request):
                                 "role": "model",
                                 "parts": [{"text": text_content}]
                             }
-                        }]
+                        }],
+                        "usageMetadata": {
+                            "promptTokenCount": 0,
+                            "candidatesTokenCount": 0,
+                            "totalTokenCount": 0
+                        }
                     }
-                    yield f"data: {json.dumps(gemini_chunk)}\n\n"
+                    logger.debug(f"[CHUNK-TEXTO] {json.dumps(gemini_chunk)}")
+                    yield f"data: {json.dumps({'response': gemini_chunk})}\n\n"
                     
                 # 2. Tratar chamadas de ferramentas (tool_calls)
                 tool_deltas = delta.get("tool_calls", [])
@@ -580,8 +626,26 @@ async def stream_generate_content(request: Request):
                         }
                     }]
                 }
-                yield f"data: {json.dumps(gemini_tool_chunk)}\n\n"
-                
+                logger.debug(f"[CHUNK-TOOL] {json.dumps(gemini_tool_chunk)}")
+                yield f"data: {json.dumps({'response': gemini_tool_chunk})}\n\n"
+
+            # Chunk final de fechamento (STOP) - sem isso o binario do agy
+            # (parser Go fechado) pode dar nil pointer dereference ao
+            # processar o fim do stream sem finishReason/usageMetadata.
+            final_chunk = {
+                "candidates": [{
+                    "content": {"role": "model", "parts": []},
+                    "finishReason": "STOP"
+                }],
+                "usageMetadata": {
+                    "promptTokenCount": 0,
+                    "candidatesTokenCount": 0,
+                    "totalTokenCount": 0
+                }
+            }
+            logger.debug(f"[CHUNK-FINAL] {json.dumps(final_chunk)}")
+            yield f"data: {json.dumps({'response': final_chunk})}\n\n"
+
         except Exception as e:
             logger.error(f"Erro no stream do proxy: {e}")
             error_resp = {
@@ -605,4 +669,15 @@ async def catch_all(request: Request, path: str):
     except Exception:
         body = await request.body()
         logger.warning(f"CATCH-ALL RAW BODY: {body}")
+        
+    # Se a rota for de atualizacao de token OAuth
+    if "token" in path.lower() or "oauth" in path.lower():
+        logger.info("Mockando token OAuth para manter sessao do agy ativa.")
+        return JSONResponse(content={
+            "access_token": "MOCK-ANTIGRAVITY-PROXY-ACCESS-TOKEN-NOT-REAL-abcdefghijklmnopqrstuvwxyz0123456789",
+            "refresh_token": "MOCK-ANTIGRAVITY-PROXY-REFRESH-TOKEN-NOT-REAL",
+            "expires_in": 3599,
+            "token_type": "Bearer"
+        })
+        
     return JSONResponse(content={})
