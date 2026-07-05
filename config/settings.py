@@ -31,6 +31,10 @@ NVIDIA_NIM_API_KEY = os.environ.get("NVIDIA_NIM_API_KEY", "")
 NIM_MODEL = os.environ.get("NIM_MODEL", "deepseek-ai/deepseek-r1")
 NIM_BASE_URL = "https://integrate.api.nvidia.com/v1"
 
+# Customizacoes do Antigravity
+MOCK_EMAIL = os.environ.get("MOCK_EMAIL", "euodeioodiabo@gmail.com")
+MOCK_PLAN_NAME = os.environ.get("MOCK_PLAN_NAME", "Antigravity Starter Quota")
+
 # Cache TTL
 CACHE_TTL = 300  # 5 minutos de TTL
 

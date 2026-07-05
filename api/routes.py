@@ -13,7 +13,9 @@ from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse
 from config.settings import (
     logger,
     PROVIDER_CONFIGS,
-    NIM_MODEL
+    NIM_MODEL,
+    MOCK_EMAIL,
+    MOCK_PLAN_NAME
 )
 from providers.manager import (
     fetch_provider_models,
@@ -103,11 +105,11 @@ def setup_mock_credentials():
     else:
         acc_data = {}
         
-    acc_data["active"] = "euodeioodiabo@gmail.com"
+    acc_data["active"] = MOCK_EMAIL
     if "old" not in acc_data:
         acc_data["old"] = []
-    if "euodeioodiabo@gmail.com" not in acc_data["old"]:
-        acc_data["old"].append("euodeioodiabo@gmail.com")
+    if MOCK_EMAIL not in acc_data["old"]:
+        acc_data["old"].append(MOCK_EMAIL)
         
     try:
         os.makedirs(os.path.dirname(ACCOUNTS_PATH), exist_ok=True)
@@ -141,7 +143,7 @@ def setup_mock_credentials():
         "azp": "681255809395-oo8ft2oprdrnp9e3aqf6av3hmdib135j.apps.googleusercontent.com",
         "aud": "681255809395-oo8ft2oprdrnp9e3aqf6av3hmdib135j.apps.googleusercontent.com",
         "sub": "115126167026707501557",
-        "email": "euodeioodiabo@gmail.com",
+        "email": MOCK_EMAIL,
         "email_verified": True,
         "at_hash": "LVX1aKT1hxLIDvtDD00svg",
         "name": "Pacoca",
@@ -264,6 +266,19 @@ async def log_request_details(request: Request, endpoint_name: str):
 @app.post("/v1internal:loadCodeAssist")
 async def load_code_assist(request: Request):
     await log_request_details(request, "loadCodeAssist")
+    
+    # Determinar displayName dinamico com base em NIM_MODEL
+    active_model = NIM_MODEL
+    display_name = active_model.split("/")[-1].replace("-", " ").title()
+    if "deepseek-r1" in active_model.lower():
+        display_name = "DeepSeek R1"
+    elif "llama-3.3" in active_model.lower():
+        display_name = "Llama 3.3 70B"
+    elif "gemini-3.5-flash" in active_model.lower():
+        display_name = "Gemini 3.5 Flash (High)"
+        
+    model_name = f"models/{active_model.replace('/', '-')}"
+    
     return JSONResponse(content={
         "userSettings": {
             "telemetryEnabled": True
@@ -274,9 +289,23 @@ async def load_code_assist(request: Request):
         "disableFeedback": False,
         "disableCitations": False,
         "model": {
-            "name": "models/gemini-3.5-flash",
-            "displayName": "Gemini 3.5 Flash (High)"
+            "name": model_name,
+            "displayName": display_name
         },
+        "currentTier": {
+            "id": "free-tier",
+            "name": MOCK_PLAN_NAME,
+            "description": MOCK_PLAN_NAME,
+            "isDefault": True
+        },
+        "allowedTiers": [
+            {
+                "id": "free-tier",
+                "name": MOCK_PLAN_NAME,
+                "description": MOCK_PLAN_NAME,
+                "isDefault": True
+            }
+        ],
         "experiments": []
     })
 
@@ -289,7 +318,7 @@ async def fetch_admin_controls(request: Request):
 async def fetch_user_info(request: Request):
     await log_request_details(request, "fetchUserInfo")
     return JSONResponse(content={
-        "email": "euodeioodiabo@gmail.com",
+        "email": MOCK_EMAIL,
         "displayName": "Antigravity User"
     })
 
@@ -319,7 +348,16 @@ async def retrieve_quota(request: Request):
     return JSONResponse(content={
         "quotaLimit": quota_limit,
         "quotaRemaining": quota_remaining,
-        "resetTime": "2026-07-12T00:00:00Z"
+        "resetTime": "2026-07-12T00:00:00Z",
+        "userTier": MOCK_PLAN_NAME,
+        "userTiers": [
+            {
+                "id": "free-tier",
+                "name": MOCK_PLAN_NAME,
+                "description": MOCK_PLAN_NAME,
+                "isDefault": True
+            }
+        ]
     })
 
 @app.post("/v1internal:listExperiments")
