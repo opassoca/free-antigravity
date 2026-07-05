@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 echo "◈ Free Antigravity - Proxy Installer ◈"
 
@@ -6,7 +6,7 @@ PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 1. Instalar dependências de Python
 echo "[*] Instalando dependências de Python a partir do requirements.txt..."
-pip install -r "$PROJECT_DIR/requirements.txt"
+python -m pip install -r "$PROJECT_DIR/requirements.txt"
 
 # 2. Validar diretório binário local
 BIN_DIR="/data/data/com.termux/files/home/bin"
