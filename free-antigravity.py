@@ -157,7 +157,8 @@ async def list_experiments(request: Request):
 @app.post("/v1internal:fetchAvailableModels")
 async def fetch_models(request: Request):
     await log_request_details(request, "fetchAvailableModels")
-    json_path = "/data/data/com.termux/files/home/free-antigravity/real_models_response.json"
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    json_path = os.path.join(base_dir, "data", "real_models_response.json")
     if os.path.exists(json_path):
         with open(json_path, "r") as f:
             data = json.load(f)
@@ -165,6 +166,15 @@ async def fetch_models(request: Request):
     else:
         logger.error(f"Arquivo real_models_response.json nao encontrado em {json_path}!")
         return JSONResponse(content={"models": {}})
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_home(request: Request):
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    html_path = os.path.join(base_dir, "index.html")
+    if os.path.exists(html_path):
+        with open(html_path, "r") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content="<h1>Free Antigravity Server is running!</h1>")
 
 @app.get("/v1internal/")
 async def root_probe(request: Request):
