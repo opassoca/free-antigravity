@@ -5,15 +5,23 @@ import logging
 import asyncio
 import httpx
 from typing import Any, AsyncGenerator
+from contextlib import asynccontextmanager
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse
+
+# Carregar configuracoes locais do proprio .env se disponivel na raiz do script
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOCAL_ENV_PATH = os.path.join(BASE_DIR, ".env")
+if os.path.exists(LOCAL_ENV_PATH):
+    load_dotenv(LOCAL_ENV_PATH)
 
 # Adicionar pasta do free-claude-code ao path do sistema para importar seus modulos
 FCC_PATH = "/data/data/com.termux/files/home/free-claude-code"
 if FCC_PATH not in sys.path:
     sys.path.append(FCC_PATH)
 
-# Carregar configuracoes do free-claude-code .env se disponivel
+# Carregar configuracoes do free-claude-code .env se disponivel como fallback
 FCC_ENV_PATH = os.path.join(FCC_PATH, ".env")
 if os.path.exists(FCC_ENV_PATH):
     load_dotenv(FCC_ENV_PATH)
