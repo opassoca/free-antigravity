@@ -170,6 +170,18 @@ async def fetch_models(request: Request):
     if os.path.exists(json_path):
         with open(json_path, "r") as f:
             data = json.load(f)
+        # Patch dinâmico: renomear displayName dos modelos baseado em MODEL_MAP_* do .env
+        models = data.get("models", {})
+        for model_id, model_info in models.items():
+            env_key = f"MODEL_MAP_{model_id.upper().replace('-', '_').replace('.', '_')}"
+            mapped_target = os.environ.get(env_key)
+            if mapped_target and "displayName" in model_info:
+                # Extrair nome legivel do modelo mapeado (ex: "nvidia/deepseek-ai/deepseek-v4-pro" -> "DeepSeek V4 Pro")
+                raw_name = mapped_target.split("/")[-1]  # pega o ultimo segmento
+                friendly_name = raw_name.replace("-", " ").replace("_", " ").title()
+                original_name = model_info["displayName"]
+                model_info["displayName"] = f"{friendly_name} (via {mapped_target.split('/')[0].upper()})"
+                logger.info(f"Patch displayName: '{original_name}' -> '{model_info['displayName']}' (ENV: {env_key})")
         return JSONResponse(content=data)
     else:
         logger.error(f"Arquivo real_models_response.json nao encontrado em {json_path}!")
